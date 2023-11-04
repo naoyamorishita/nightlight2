@@ -1,0 +1,345 @@
+# Introduction
+This vignett is a part of USF project in Clark University, and we want to answer to the question "Are Neighborhoods with Public Housing Projects Brighter?" using Providence RI as a case study.
+
+# Datasets
+Here is a list of datasets that will be used
+
+- Artificial Light at Night (ALAN) Radiance Data from [NASA](https://www.earthdata.nasa.gov/learn/backgrounders/nighttime-lights) 
+- NDVI in May 2023 from [Landsat8](https://www.usgs.gov/landsat-missions/landsat-8)
+- Population Data in 2020 from [Census Data](https://www.census.gov)
+- Public Housing Data updated in 2023 from [HUD](https://www.huduser.gov/portal/datasets/assthsg.html#2009-2022_data)
+- Building Footprint Data from [RI GIS Portal](https://www.rigis.org/datasets/building-footprints)
+
+# Workflow
+This study will follow [a previous study](https://github.com/agroimpacts/USFlite/blob/main/external/notebooks/nightlights-part2.md) done by Dr. Estes et al at Clark University, and this will:
+
+1. Plotting rasters of the variables
+2. Exploring relations between the ALAN radiance and the other variables using scatter plot and linear regression line
+3. Comparing medians of the ALAN radiance from cells, which have similar population, between with/ without public housings.
+
+Additionally, I will try if we can estimate the ALAN radiance from population, public housing density size, and NDVI with a supervised machine learning method.
+```{r, include = F}
+# Reading Rasters====
+library(geospaar)
+alan <- raster::raster("./data/providence_ri/mean_all.TIF")
+ndvi <- raster::raster("./data/providence_ri/ndvi.tif")
+pop <- raster::raster("./data/providence_ri/pop_grid.tif")
+bld <- raster::raster("./data/providence_ri/bld_density.tif")
+ph_area <- raster::raster("./data/providence_ri/ph_area_grid.tif")
+
+# Aligning Rasters====
+r_list <- list(alan, ndvi, pop, bld, ph_area) # creating list # for the loop
+
+for (i in 1:length(r_list)){
+  extent(r_list[[i]]) <- extent(alan) # aligning extent
+  crs(r_list[[i]]) <- crs(pop) # aligning crs
+}
+
+# Creating a Raster Brick====
+b <- brick(r_list)
+
+# Creating a Polygon from the Brick====
+p <- rasterToPolygons(b %>% scale()) %>% # converting raster to polygon # after scaling # for regression analysis
+  st_as_sf() %>% 
+  na.omit(.) %>% # removing na values
+  rename(alan = layer.1, # making columns "meaningful" 
+         ndvi = layer.2,
+         pop = layer.3,
+         bld = layer.4,
+         ph_area = layer.5)
+
+# Creating sf with public housings only----
+b_ph <- b
+b_ph[b_ph == 0] <- NA
+
+p_ph <- rasterToPolygons(b_ph %>%  # converting raster to polygon # extracting those only with ph
+                           scale()) %>% 
+  st_as_sf() %>% 
+  na.omit(.) %>% 
+  select(alan = layer.1, # saving important columns
+         ph_area = layer.5)
+  
+```
+
+# Analysis
+## Plot
+The below is short descriptions about the plots. Note that: 
+
+- the ALAN and the building density have similar patterns, and they are concentrated in center.
+- the NDVI and the above two layers have opposite patterns, high NDVI areas are surrounding the city center.
+- the population grids and the ALAN show partially overlap, but the population have concentrations in the southwest. 
+- the public housing layer are not evenly distributed to the whole city: they are located in west and north- central.
+```{r, fig.width=6, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+titles <- c("ALAN", "NDVI", "Population", "Building Density", "Public Housing Density")
+plot_noaxes(b, main = titles)
+```
+
+## Scatter Plot and Regression Line
+The scatter and regression plots were similar with what I expected to have. 
+
+I got **positive correlation between the ALAN radiance and the population & the building density**. Especially, the building density has an extremely strong relations with the ALAN. I would say the correlation between the public housing and the radiance is random or very weak.
+On the other hand, the radiance and the NDVI have apparently negative correlations.
+```{r, fig.width=6, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+g1 <- p %>% ggplot() + # creating plot from ggplot2
+  geom_point(aes(x = ndvi, y = alan)) + # adding scatter plot # putting ndvi on x & alan on y
+  geom_smooth(aes(x = ndvi, y = alan), method = "lm") + # adding lm line
+  xlab("NDVI") + ylab("ALAN")+ # adding xlabel & ylabel
+  ggtitle("NDVI & ALAN (Scaled)") # adding main title
+
+g2 <- p %>% ggplot() + # creating another plot # for a cow plot
+  geom_point(aes(x = pop, y = alan)) + # using population as a variable
+  geom_smooth(aes(x = pop, y = alan), method = "lm") + 
+  xlab("Population") + ylab("ALAN")+
+  ggtitle("Population & ALAN (Scaled)")
+
+g3 <- p %>% ggplot() + # creating another plot # for a cow plot
+  geom_point(aes(x = bld, y = alan)) + # using building density as a variable
+  geom_smooth(aes(x = bld, y = alan), method = "lm") + 
+  xlab("Building") + ylab("ALAN")+
+  ggtitle("Building Density & ALAN (Scaled)")
+
+g4 <- p %>% ggplot() + # creating another plot # for a cow plot
+  geom_point(aes(x = ph_area, y = alan)) + # using ph as a variable
+  geom_smooth(aes(x = ph_area, y = alan), method = "lm") +
+  xlab("Public Housing Density")+ ylab("ALAN")+
+  ggtitle("Public Housing Density & ALAN (Scaled)")
+
+g5 <- p_ph %>% ggplot() + # creating the last plot # for a cow plot # using sf with ph only 
+  geom_point(aes(x = ph_area, y = alan)) + # using ph as a variable
+  geom_smooth(aes(x = ph_area, y = alan), method = "lm") +
+  xlab("Public Housing Density") + ylab("ALAN")+
+  ggtitle("Public Housing Density & ALAN (Scaled)",
+         subtitle = "Without Public Housing -> Eliminated") # adding subtitle
+
+cowplot::plot_grid(g1, g2, g3, g4, g5, # using the 3 plots
+                   nrow = 2, # with 3 rows
+                   align = "vh", # vertically & horizontally alligned
+                   axis = "l") # aligned to left
+```
+
+Then, here are plots that shows "strict" correlation coefficient.
+```{r, fig.width=6, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+library(GGally)
+ggpairs( # creating pair plots
+  p %>% # using values in polygon from raster brick
+          st_drop_geometry()) # dropping geometry
+```
+## Median Comparison
+To do this, I will compare night light radiance of population class between grids with PH and without. To be specific:
+
+1. Assigning quantiles (every 20%)
+2. Assigning Ph status
+3. Comparing the grids using boxplot.
+
+Additionally, I will calculate the strict medians. Note the values were scaled so that they are not the "real."
+
+As a result, the median of night time radiance from grids with public housings were higher 4 out of the 5 classes, although population level2 looks too small for the those with public housings.
+```{r, fig.width=6, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Assigning the quantiles----
+pop_q <- p %>% 
+  pull(pop) %>% # using pop column
+  quantile(., # calculating quantile
+           probs = seq(0, 1, 0.2)) # making class every 20 percentiles
+
+df <- st_drop_geometry( # creating data frame
+  p) %>% # after dropping geometry from polygon
+  as.data.frame() # saving as a data frame
+
+df <- df %>% 
+  mutate(pop_class = # creating a new column of pop class
+           ifelse(pop < pop_q[2], 1, # assigning 1 if it falls into the first section
+           ifelse(pop < pop_q[3], 2,
+           ifelse(pop < pop_q[4], 3,
+           ifelse(pop < pop_q[5], 4, 5)))) %>% # assigning 5 if it falls into the last sectino
+           as.factor() # converting into factor # ie categorical values
+)
+
+# Assigning ph status----
+df <- df %>% 
+  mutate(ph_level = ifelse(ph_area > -0.2218275, "PH", "NoPH")) # assigning public housing class
+
+# Creating box plots----
+df %>% 
+  ggplot() + geom_boxplot(aes(x = pop_class, # putting pop level on x
+                              y = alan, # putting radiance on y
+                              fill = ph_level)) + # dividing by ph_status
+  xlab("Population Level") + # adding x label
+  scale_fill_manual(values = c("red", "blue")) # adding colors
+```
+```{r, fig.width=4.5, fig.height=4.5, fig.align = "left", warning = FALSE, message = FALSE}
+df %>%
+  group_by(ph_level, pop_class) %>% # grouping by ph level and population quantile
+  summarize(Radiance = median(alan)) %>% # calculating medians
+  pivot_wider(names_from = ph_level, values_from = Radiance) %>% # adding columns for comparison
+  mutate(Difference = PH - NoPH) %>% 
+  rename(PopulationClass = pop_class) %>% 
+  print()
+```
+
+##Cross Tab Map of ALAN, Population & Public Housing
+```{r, fig.width=6, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Converting Raster to Polygon====
+p_reclass <- b %>% 
+  rasterToPolygons() %>% # conversion
+  st_as_sf() %>% 
+  na.omit(.) %>% # removing na
+  select(alan = layer.1, # saving necessary columns # after renaming them
+         ndvi = layer.2,
+         pop = layer.3,
+         bld = layer.4,
+         ph = layer.5)
+
+# Reclassifying Values====
+# Population----
+pop_level <- p_reclass %>% 
+  pull(pop) %>% # using population column
+  quantile(.,
+           probs = seq(0, 1, 0.33)) # creating classes every 33 percentiles
+
+light_level <- p_reclass %>% 
+  pull(alan) %>% 
+  quantile(.,
+           probs = seq(0, 1, 0.33))
+
+# Classifying the values----
+p_reclass <- p_reclass %>%  
+  mutate(pop_class = ifelse(pop < pop_level[2], 1, # assigning 1 if falls into the 1st 33percentiles
+                     ifelse(pop < pop_level[3], 2, 3)) %>%
+           as.character(), # converting into character # for concatnation
+         alan_class = ifelse(alan < light_level[2], 1, # same as above
+                      ifelse(alan < light_level[3], 2, 3)) %>%
+           as.character(),
+         alan_pop = paste0(pop_class, alan_class) %>% # concatnating pop class and alan class
+           as.integer()) # back to integer
+
+# Creating a raster----
+alan_pop_raster <- rasterize(p_reclass,
+                             b,
+                             field = "alan_pop")
+
+# Reclassifying a raster----
+rec <- cbind(sort(unique(p_reclass$ alan_pop)-1), # creating reclassification matrix: from
+             sort(unique(p_reclass$ alan_pop)), # creating reclass mtx: to
+             1:length(unique(p_reclass$ alan_pop))) # assigning new categorical values
+
+alan_pop_class <- reclassify(x = alan_pop_raster, # reclassifying the lightph_crstbr
+                            rcl = rec, # by using the reclassification mtx
+                            include.lowest = TRUE) # including the floor values in each class
+
+col <- c("pink", "red", "purple", "lightblue", "blue", "navy","yellow", "lightgreen", "green")
+class <- c("Low/ Low", "Low/ Med", "Low/ High", "Med/ Low", "Med/ Med", "Med/ High", "High/ Low", "High/ Med", "High/ High")
+
+plot(alan_pop_class, # protting the crosstab raster
+            legend = F, # without default legend
+            main = "Cross Tab (Pop vs ALAN) & Public Housing Location",  # inserting a title
+            col = col, # using the color palette
+            mar = c(0, 0, 1, 0)) # inserting margin
+
+legend(x = "bottomright", # inserting a legend topleft
+       legend = class, # inserting legend classes
+       pch = 15, # shape of the legends
+       pt.cex = 1, # size of the legend
+       col = col, # using the color palette
+       bty = "o", # with a bounding box
+       title = "Pop/ ALAN") # adding legend title
+
+php <- st_read("data/providence_ri/ph_pt.geojson") %>%
+  st_as_sf() %>%
+  st_transform(crs = 4326)
+
+plot(php %>% 
+       st_geometry(), 
+     add = T)
+```
+
+## Prediction of the ALAN Class
+I will use K- nearest neighbor method in R to try if I can estimate the ALAN radiance class from the variables.
+
+### Data Setup: Creating a Tibble
+```{r}
+df <- p_reclass %>%
+  st_drop_geometry() %>% # dropping geometry # for creating 
+  select(x1 = ndvi, # saving only important columns after renaming
+         x2 = pop, 
+         x3 = bld, 
+         x4 = ph, 
+         y = alan_class) %>% 
+  mutate(y = y %>% as.factor) %>% 
+  mutate(id = row_number()) %>% # adding id with row numbers
+  as.tibble() # converting into tibble
+df[1:10, ]
+```
+
+#### Train- Test Split
+```{r}
+set.seed(1)
+t <- df %>% # creating train set
+  slice_sample(prop = .70) # containing 70% of the total 
+
+v <- df %>% # creating validation set
+  anti_join(t, by = "id") %>% # containing ids that are not in t
+  select(-id) # dropping id
+
+t <- t %>% # finalizing training sets
+  select(-id) # dropping id
+
+t[1:10, ]
+v[1:10, ]
+```
+#### Checking Correlation between Explaining Variables
+```{r}
+library(GGally)
+
+ggpairs(t[, 1:3]) 
+```
+### Importing Libraries for KNN
+```{r}
+library(caret)
+library(e1071)
+```
+
+### Controling Train Function
+```{r}
+trnctr <- trainControl( # controlling nuances of the train function
+  method = "repeatedCV", # using repated cross validation
+  number = 5, # identifying number of folds
+  repeats = 3 # identifying sets of folds
+)
+ k <- rep(seq(3, 20, 2), 2) # creating numbers 3- 19 # for setting neighbors
+```
+
+### Training Set
+```{r}
+fit <- train( # training data sets
+  y ~., # setting y as a depending variable
+  data = t, # using training set
+  method = "knn", # using knn
+  trControl = trnctr, # defining how to train
+  tuneGrid = data.frame(k), # setting and changing number of neighbors
+  preProcess = c("center", "scale"), # centering and scaling values
+  na.action = "na.omit" # removing na if exist
+  )
+```
+
+#### Plotting the Training Result
+```{r}
+plot(fit,
+     main = "Accuracy over Neighbors")
+```
+
+### Predicting the Validation Set
+```{r}
+pred <- predict(
+  fit,
+   newdata = v
+)
+```
+
+### Evaluating Accuracy
+As a result, the overall accuracy was not goodv (approximately 67%). I removed public housing but it was still the similar values.
+```{r}
+cm <- pred %>% 
+  confusionMatrix(reference = v$ y)
+cm$ overall[1]  %>% print()
+cm$table %>% print
+```

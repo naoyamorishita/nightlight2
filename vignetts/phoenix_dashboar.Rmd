@@ -1,0 +1,184 @@
+---
+title: "Comparison of ALAN Radiance/ Population/ Public Housing Area in Miami"
+author: "Naoya Morishita"
+output: flexdashboard::flex_dashboard
+---
+ 
+<style>
+ 
+.navbar-inverse .navbar-nav > li > a:hover,
+.navbar-inverse .navbar-nav > li > a:focus {
+    background-color: #275950;
+    color: #9BF2EA;
+}
+.navbar-inverse .navbar-nav > .active > a,
+.navbar-inverse .navbar-nav > .active > a:hover,
+.navbar-inverse .navbar-nav > .active > a:focus {
+  color: #9BF2EA;
+  background-color: #275950;
+}
+.navbar-inverse .navbar-toggle:hover,
+.navbar-inverse .navbar-toggle:focus {
+  background-color: #275950;
+}
+.navbar-inverse .navbar-collapse,
+.navbar-inverse .navbar-form {
+  border-color: #275950;
+}
+</style>
+ 
+Basic Maps{}
+=====================================
+    
+## column 1
+```{r setup, include=FALSE}
+# Reference: https://bookdown.org/yihui/rmarkdown/layout.html#multiple-pages
+library(flexdashboard)
+library(geospaar)
+library(leaflet)
+```
+ 
+```{r, include = False}
+avg <- raster::raster("./data/total_mean.tif")
+ndbi <- raster::raster("./data/ndbi_2206.tif")
+population <- st_read("./data/population.geojson") %>% 
+  st_as_sf() %>% 
+  st_transform(population, crs = 4326)
+
+housing <- st_read("./data/ph_phoenix.geojson") %>% 
+  st_as_sf() %>% 
+  st_transform(housing, crs = 4326)
+
+colores <- c("#023535", "#015958", "#008F8C", "#D8FFDB", "#C7FFED") # creating color palette
+at <- seq(0, 3000, 600) # for splitting values (max 3000) into every 600
+cb <- colorBin(palette = colores, bins = at, domain = at) # creating color bin # assigning colors to classification
+```
+ 
+### Average Artificial Light at Night (ALAN) Radiance/ Month
+This project is a part of "[Methodologies for Just Urban Futures: Using Geospatial Tools to Address Police Violence](https://github.com/agroimpacts/USFlite)" at Graduate School of Geography at Clark University. We analyzed artificial night at night radiance (ALAN radiance) in Phoenix to compare the ALAN radiance from neighbors of public housings  and that fron non- public housing grids.
+ 
+We used the following datasets:
+ 
+1. [Nighttime Lights Data from NASA](https://www.earthdata.nasa.gov/learn/backgrounders/nighttime-lights#:~:text=Viewing%20nighttime%20lights%20provides%20a,also%20known%20as%20surface%20albedo.)
+2. [Surface Reflectance Data from Landsat8](https://www.usgs.gov/landsat-missions/landsat-8)
+3. [Population Data from the U.S Census](https://www.census.gov)
+4. [Public Housing Data from the U.S Department of Housing and Urban Development](https://hudgis-hud.opendata.arcgis.com)
+ 
+ 
+First of all, this tab shows:
+ 
+1. Average Monthly ALAN Radiance in this 10years
+2. Normalized Built- up Index
+3. Population in Census Tracts & Public Housing Location
+ 
+Next, the other tab shows:
+ 
+1. Correlations of ALAN Radiance and Explaining Variables
+2. Comparison of Median Radiance between grids with PH and those without that have similar population
+ 
+```{r}
+colores <- c("#023535", "#015958", "#008F8C", "#D8FFDB", "#C7FFED") # creating color palette
+at <- seq(0, 3000, 600) # for splitting values (max 3000) into every 600
+cb <- colorBin(palette = colores, bins = at, domain = at) # creating color bin # assigning colors to classification
+osm <- leaflet() %>% 
+  addProviderTiles(providers$OpenStreetMap)
+osm %>%
+  addRasterImage(x = avg, # data
+                 opacity = 0.8, # opacity
+                 colors = colores) %>% # color palettefrom the previous chunk
+  addLegend(pal = cb, # palette
+            values = at, # steps
+            title = "Monthly ALAN Ave for 10yrs") # title
+```
+ 
+    
+## Column2
+Please explore population raster and public housings in Miami. For the public housing layer, you can see their estimated areas & their total occupancy when you click on them.
+ 
+### Population & Public Housing
+ 
+```{r}
+labelling <- function(occu, area){ # for pop up definition
+  paste0("<b>ID:</b>", # showing "Total Occupancy" in bold font
+        OBJECTID, # showing occupancy
+        "<br>", # inserting a new line
+        "<b>Total Unit:</b>", # showing "Area (mile^2)" in bold font
+        TOTAL_OCCUPIED# showing area
+        )}
+ 
+osm %>%
+  addRasterImage(x = pop, # from populatino tif
+                 opacity = 0.8, # with opacity of 0.8
+                 colors = colores) %>% # using color palette
+  addPolygons(data = m_boundary,
+              color = "#023535",
+              fillOpacity = 0) %>%
+  addCircles(data = bld, # from building points
+            color = "#85485D", # boundary
+             fillColor = "#EE1562", # fill color
+             fillOpacity = 1, # No transparency
+             popup = ~ labelling(occu = TOTAL_OCCU, # activating pop ups # deriving values from the column of the sf
+                                 area = area)) %>% # deriving values from the column of the sf
+  addLegend(pal = cb, values = at, title = "Population") # adding legend
+```
+   
+CrossTab Maps {}
+=====================================    
+ 
+## Column 1
+These maps were created after:
+ 
+- Reclassifying the night light radiance and the population/ the night light radiance and the public housing areas.
+- Assigning "High", "Medium", and "Low" to each layer's classification
+- Combining these classes of the night light radiance and the population/ the night light radiance and the public housing areas.
+ 
+For the Ph layer, there is no "Medium Class."
+ 
+### ALAN Radiance vs Population
+```{r, include=F}
+lpop_cross <- raster::raster("./miami_data/light_pop_cross.tif")
+crs(lpop_cross)<- crs(m_boundary)
+ 
+lph_cross <- raster::raster("./miami_data/light_ph_cross.tif")
+ 
+crs(lpop_cross) <- crs("epsg: 4326")
+crs(lph_cross) <- crs("epsg: 4326")
+```
+```{r, message = F, warning = F}
+cols <- c("lightgrey", "grey", "black", "lightgreen", "green", "seagreen", "pink", "salmon", "red" )
+at <- seq(1, 10, 1)
+cb <- colorBin(palette = cols, bins = at, domain = at)
+ 
+labels = c("Low/ Low", "Low/ Medium", "Low/ High",
+           "Medium/ Low", "Medium/ Medium", "Medium/ High",
+           "High/ Low", "High/ Medium", "High/ High") # labels # for using in legend
+osm %>%
+  addRasterImage(x = lpop_cross,
+                 opacity = 0.8,
+                 colors = cols) %>%
+  addPolygons(data = m_boundary,
+              color = "#023535",
+              fillOpacity = 0) %>%
+  addLegend(pal = cb, values = at, title = "Radiance/ Population ",
+            labFormat = function(type, cuts, p) {paste0(labels)}) # this line changing legend labels
+```
+ 
+## Column 2
+### ALAN Radiance vs Public Housing
+```{r}
+cols <- c("lightgrey", "lightgreen", "seagreen", "pink", "red" )
+at <- seq(1, 6, 1)
+cb <- colorBin(palette = cols, bins = 5, domain = at)
+ 
+labels = c("Low/Low", "Medium/Low", "Medium/High", "High/Low", "High/High")
+osm %>%
+  addRasterImage(x = lph_cross,
+                 opacity = 0.8,
+                 colors = cols) %>%
+  addPolygons(data = m_boundary,
+              color = "#023535",
+              fillOpacity = 0)  %>%
+  addLegend(pal = cb, values = at, title = "Radiance/ Ph Area",
+            labFormat = function(type, cuts, p) {
+              paste0(labels)})
+```

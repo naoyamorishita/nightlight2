@@ -1,0 +1,114 @@
+## Appendix2: Estimating Changes of Radiance
+```{r}
+setwd("/Volumes/volume/GIS Projects/nightlight/providence/lights_tif/5yrs")
+path <- list.files(pattern = "*.tif")
+rast_list <- lapply(path, 
+                    raster::raster)
+```
+```{r}
+tif_names <- lapply(path, 
+                    function(x){
+                      substr(x, 1, 8) # creating a list of shortened file names # like "A2019335"
+})
+
+b2 <- brick(rast_list)
+names(b2) <- as_vector(tif_names)
+crs(b2) <- crs("epsg:32130")
+
+```
+```{r}
+data <- b2 %>% 
+  rasterToPolygons(.) %>% 
+  st_as_sf %>% 
+  na.omit(.) %>% 
+  st_drop_geometry
+
+ym_mean <- sapply(data,
+                 mean
+                 ) %>%
+  as_tibble() %>% 
+  mutate(m = row(.)) %>% 
+  mutate(month = abs(m %% 12)) %>% 
+  mutate(month = ifelse(month == 0, 12, month)) %>% 
+  mutate(year = abs(2016 + floor((m-1)/ 12))) %>% 
+  mutate(ym = paste(year, "-", month) %>% 
+           as.factor(.))
+
+ggplot(ym_mean) +
+  geom_line(aes(x = month, y = value, color = as.factor(year))) +
+  scale_color_manual(values = c("red", "pink", "blue", "green", "orange", "yellow", "grey"))
+
+df1 <- 
+ym_mean %>%
+  group_by(year) %>% 
+  summarize(meanval = mean(value))
+ggplot(df) +
+  geom_line(aes(x = year, y = meanval))
+
+df2 <-
+  ym_mean %>% 
+  group_by(month) %>% 
+  summarize(meanval = mean(value))
+
+ggplot(df2) +
+  geom_line(aes(x = month, y = meanval))
+```
+
+## Comparing Monthly & Yearly Changes
+```{r}
+sf_monthly <- 
+  rasterToPolygons(b2) %>% 
+  st_as_sf %>% 
+  na.omit(.)
+
+sf_monthly_ph <- 
+  st_join(sf_monthly,
+          ph_df %>% 
+            select(PhStatus),
+          join = st_equals, 
+          left = F)
+
+sf_monthly_noph <- 
+  st_join(sf_monthly,
+          no_ph_df %>% 
+            select(PhStatus),
+          join = st_equals,
+          left = F)
+
+sf_monthly_ph_mean <- sf_monthly_ph %>% 
+  st_drop_geometry(.) %>% 
+  sapply(mean) %>%
+  as_tibble() %>% 
+  mutate(m = row(.)) %>% 
+  mutate(month = abs(m %% 12)) %>% 
+  mutate(month = ifelse(month == 0, 12, month)) %>% 
+  mutate(year = abs(2016 + floor((m-1)/ 12))) %>% 
+  mutate(ym = paste(year, "-", month) %>% 
+           as.factor(.)) %>% 
+  mutate(PhStatus = "Y") %>% 
+  na.omit(.)
+
+sf_monthly_noph_mean <- sf_monthly_noph %>% 
+  st_drop_geometry(.) %>% 
+  sapply(mean) %>%
+  as_tibble() %>% 
+  mutate(m = row(.)) %>% 
+  mutate(month = abs(m %% 12)) %>% 
+  mutate(month = ifelse(month == 0, 12, month)) %>% 
+  mutate(year = abs(2016 + floor((m-1)/ 12))) %>% 
+  mutate(ym = paste(year, "-", month) %>% 
+           as.factor(.)) %>% 
+  mutate(PhStatus = "N") %>% 
+  na.omit(.)
+
+sf_monthly_mean_all <- bind_rows(sf_monthly_ph_mean, sf_monthly_noph_mean)
+```
+```{r}
+df3 <- 
+sf_monthly_mean_all %>%
+  group_by(PhStatus, year) %>% 
+  summarize(medianval = median(value))
+
+ggplot(df3) +
+  geom_line(aes(x = year, y = medianval, color = PhStatus))
+```

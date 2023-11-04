@@ -1,0 +1,425 @@
+---
+title: "Are Neighborhoods with Public Housing Projects Brighter?(Providence RI)"
+author: "Naoya Morishita"
+---
+# Introduction
+## Introduction
+This exercise will look at brightness values across the city of Providence Rhode Island, and compare the values between grids with and without public housings, referring to [this case study](https://github.com/agroimpacts/USFlite/blob/main/external/notebooks/nightlights-part2.md
+).
+
+## Datasets
+- The Monthly Average [night lights between 2012-2023 from NASA](https://www.earthdata.nasa.gov/learn/backgrounders/nighttime-lights)
+- SAVI from the [Landsat8](https://www.usgs.gov/landsat-missions/landsat-8)
+- Gridded Population from [the US Census in 2020](https://www.census.gov/topics/population.html)
+- Gridded Public Housing Density Estimated from [HUD Data](https://www.huduser.gov/portal/datasets/assthsg.html#2009-2022_data) & Building Footprint Data from [URI Environmental Data Center and RIGIS](https://www.rigis.org/datasets/building-footprints/explore)
+- Gridded Building Density Data of Building Footprint Data from [URI Environmental Data Center and RIGIS](https://www.rigis.org/datasets/building-footprints/explore)(https://www.sciencebase.gov/catalog/item/5d27a8dfe4b0941bde650fc7)
+
+# Data Preparation
+## Reading & Showing Data
+```{r, include = F}
+library(geospaar)
+nl <- raster::raster("data/providence_ri/mean_all.tif")
+ndvi <- raster::raster("data/providence_ri/ndvi.tif")
+pop <- raster::raster("data/providence_ri/pop_grid.tif")
+bld <- raster::raster("data/providence_ri/bld_density.tif")
+ph <- raster::raster("data/providence_ri/ph_area_grid.tif")
+
+l <- list(nl, ndvi, pop, bld, ph)
+
+for (i in 1:length(l)){
+  crs(l[[i]]) <- crs("epsg:32130")
+  extent(l[[i]]) <- extent(nl)
+}
+
+b <- brick(l)
+
+names(b) <- c("NightLight", "NDVI", "Population", "Building", "PublicHousing")
+
+sf <- rasterToPolygons(b) %>% 
+  st_as_sf %>% 
+  na.omit(.) %>% 
+  mutate(PhStatus = ifelse(PublicHousing > 0, 
+                            "Y",
+                            "N"))
+
+sf_scaled <- raster::scale(b) %>% 
+  rasterToPolygons(.) %>% 
+  st_as_sf %>% 
+  na.omit %>% 
+  mutate(PhStatus = ifelse(PublicHousing > min(PublicHousing), 
+                            "Y",
+                            "N"))
+```
+```{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Plotting the Raster====
+plot_noaxes(b)
+```
+
+# Analysis
+## Showing Relations: With Regression
+Now, we are going to plot the relations between the nighttime light radiance and the other variables with `ggplot2`. Note that the values are all scaled. Here are some of major findings:
+
+- Medium positive correlation between nightlight and population
+- Strongly positive correlation between night light and building density
+- Weakly positive and negative correlation between nightlight and building volume/ SAVI, respectively
+- Random correlations between nightlight and public housing
+```{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Analysing Correlation with GGally====
+library(GGally)
+
+ggpairs(sf_scaled, 
+        columns = 1:5,
+        ggplot2::aes(color = PhStatus))
+```
+## Comparing Radiances: Boxplots
+The following codes compare median radiance from similar population and building density in between grids with/ without public housing to answer the question of "Are Neighborhoods with Public Housing Projects Brighter?"
+The steps are:
+
+1. Calculate 1/3 and 2/3 percentiles of population and building density separately to assign levels
+2. Divide the data frame into grids with ph and without.
+3. Assign the levels to each grid to classify 9 levels (Population: low & Density: low, Population: Middle & Density: Low etc...)
+4. Compare medians from all classes between those with and without public housings.
+
+The result seems to be:
+
+- There is no record of grids with public housings for level 1 and 4
+``````{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Preparing for Analysis====
+# Calculating 33% quantiles----
+pop_q <- sf_scaled %>% 
+  pull(Population) %>% # using pop column
+  quantile(., probs = seq(0, 1, 1/3)) # setting probabilities for making every 0.2 threshold
+
+bld_q <- sf_scaled %>% 
+  pull(Building) %>% 
+  quantile(., probs = seq(0, 1, 1/3))
+
+# Defining which class the records belong to----
+popvol <- sf_scaled %>% 
+  mutate(., 
+         pop_class = cut(Population, # converting population into factors # using the factors as classification classes
+                         pop_q, 
+                         include.lowest = T,
+                         dig.lab = 4)) %>% 
+  mutate(., 
+         bld_class = cut(Building, 
+                         bld_q, 
+                         include.lowest = T, 
+                         dig.lab = 2))
+
+# Counting the numbers of each class with cross taburation----
+tab_original <- table(pop = popvol$ pop_class,
+                      bvol = popvol$ bld_class) %>% 
+  as.data.frame(.)
+
+# Creating a from to table----
+tab <- tab_original %>% 
+separate(., # separating population column into 2 columns
+         col = pop,
+         into = c("pop_l", "pop_u"),
+         sep = ",") %>% # specifying delimiter 
+  separate(., 
+           col = bvol,
+           into = c("bvol_l", "bvol_u"), 
+           sep = ",") %>% 
+  mutate(., 
+         pop_l = as.numeric(gsub("\\(|\\[", # replacing these characters into ""
+                                 "", 
+                                 pop_l))) %>% # using pop_l column
+  mutate(., pop_u = as.numeric(gsub("\\]", 
+                                    "", 
+                                    pop_u))) %>%
+  mutate(., bvol_l = as.numeric(gsub("\\(|\\[", 
+                                     "",
+                                     bvol_l))) %>% 
+  mutate(., bvol_u = as.numeric(gsub("\\]", 
+                                     "", 
+                                     bvol_u))) %>% 
+  filter(., Freq > 1) 
+
+# Dividing into Grids with Ph and without====
+no_ph_df <- lapply(1: nrow(tab), 
+                function(x){
+                  l <- tab[x, ] 
+                  # print(l)
+                  sf_scaled %>% 
+                    filter(PhStatus == "N") %>% 
+                    filter(between(Population, 
+                                   l$ pop_l,
+                                   l$ pop_u)) %>% 
+                    filter(between(Building,
+                                   l$ bvol_l,
+                                   l$ bvol_u)) %>% 
+                    mutate(level = factor(x))
+                }) %>% 
+  bind_rows()
+print(no_ph_df[1:5,])
+
+# Creagting ph df----
+ph_df <- lapply(1: nrow(tab),
+                function(x){
+                  l <- tab[x, ] 
+                  # print(l)
+                  sf_scaled %>% 
+                    filter(PhStatus == "Y") %>% 
+                    filter(between(Population, 
+                                   l$ pop_l,
+                                   l$ pop_u)) %>% 
+                    filter(between(Building,
+                                   l$ bvol_l,
+                                   l$ bvol_u)) %>% 
+                    mutate(level = factor(x))
+                }) %>% 
+  bind_rows()
+
+# Combining the dfs----
+all_df <- bind_rows(no_ph_df, ph_df)
+
+# Creating Box Plots====
+all_df %>% 
+  ggplot() + geom_boxplot(aes(x = level,
+                              y = NightLight, 
+                              fill = PhStatus)) + 
+  xlab("Population/Builsing Level") + 
+  ylab("Radiance") +
+  scale_fill_manual(values = c("salmon", "steelblue"))
+```
+### Comparing Radiances: Data Frame
+```{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Comparing Median by Data Frame====
+all_df %>% 
+  st_drop_geometry() %>% # converting sf to df
+  group_by(PhStatus, level) %>% # grouping by ph level and population quantile
+  summarize(MedianRadiance = median(NightLight)) %>% # calculating medians
+  pivot_wider(names_from = PhStatus, values_from = MedianRadiance) %>% # adding columns for comparison
+  mutate(Difference = Y - N) %>% # adding a column
+  rename(PopulationBuildingLevel = level) # renaming a column
+```
+
+## Appendix1: Are those with Ph less or more vegetated?
+Same as the above, I want to use SAVI level instead of population and building density. Note that the value is scaled. The result was that the medians of SAVI with public housing from ALL classes of similar population/ building density were almost the same.
+```{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Preparing for the Analysis====
+# Creating savi column without scaling----
+ndvi_p <- b[[2]] %>% 
+  rasterToPolygons() %>% 
+  st_as_sf() %>% 
+  na.omit() %>% 
+  rename(ndvi_original = NDVI)
+
+all_df <- st_join(
+          all_df, 
+          ndvi_p,
+          join = st_equals, 
+          left = F)
+
+# Creating light classes----
+lt_q <- all_df %>% 
+  pull(NightLight) %>% # using pop column
+  quantile(., probs = seq(0, 1, 1/3)) # setting probabilities for making every 0.2 threshold
+
+# Defining which class the records belong to----
+ltpop <- all_df %>% 
+  mutate(., lt_class = cut(NightLight, lt_q, include.lowest = T, dig.lab = 4)) %>% 
+  mutate(., pop_class = cut(Population, pop_q, include.lowest = T, dig.lab = 2))
+
+# Counting the numbers of each class with crosstaburation----
+tab_original <- table(pop = ltpop$ pop_class, 
+             lt = ltpop$ lt_class) %>% 
+  as.data.frame(.)
+
+# Creating a "from to" table----
+tab <- tab_original %>% 
+separate(., col = pop, into = c("pop_l", "pop_u"), sep = ",") %>% 
+  separate(., col = lt, into = c("lt_l", "lt_u"), sep = ",") %>% 
+  mutate(., pop_l = as.numeric(gsub("\\(|\\[", "", pop_l))) %>%
+  mutate(., pop_u = as.numeric(gsub("\\]", "", pop_u))) %>%
+  mutate(., lt_l = as.numeric(gsub("\\(|\\[", "", lt_l))) %>% 
+  mutate(., lt_u = as.numeric(gsub("\\]", "", lt_u))) %>% 
+  filter(., Freq > 1)
+
+# Dividing into Grids with Ph and without====
+no_ph_df <- lapply(1: nrow(tab), 
+                function(x){
+                  l <- tab[x, ] 
+                  all_df %>% 
+                    filter(PhStatus == "N") %>% 
+                    filter(between(Population, 
+                                   l$ pop_l,
+                                   l$ pop_u)) %>% 
+                    filter(between(NightLight,
+                                   l$ lt_l,
+                                   l$ lt_u)) %>% 
+                    mutate(level = factor(x))
+                }) %>% 
+  bind_rows()
+
+# Creagting ph df----
+ph_df <- lapply(1: nrow(tab), 
+                function(x){
+                  l <- tab[x, ] 
+                  all_df %>% 
+                    filter(PhStatus == "Y") %>% 
+                    filter(between(Population, 
+                                   l$ pop_l,
+                                   l$ pop_u)) %>% 
+                    filter(between(NightLight,
+                                   l$ lt_l,
+                                   l$ lt_u)) %>% 
+                    mutate(level = factor(x))
+                }) %>% 
+  bind_rows()
+
+# Combining the dfs----
+all_df2 <- bind_rows(ph_df, no_ph_df)
+
+# Creating a Box Plots====
+all_df2 %>% 
+  ggplot() + geom_boxplot(aes(x = level,
+                              y = ndvi_original, 
+                              fill = PhStatus)) + 
+  xlab("Population/Light Level") + 
+  ylab("NDVI") +
+  scale_fill_manual(values = c("salmon", "steelblue"))
+```
+
+### Comparing Radiances: Data Frame
+```{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Comparing Medina in Data Frame====
+all_df2 %>%
+  st_drop_geometry() %>% # converting sf to df
+  group_by(PhStatus, level) %>% # grouping by ph level and population quantile
+  summarize(MedianNDVI = median(ndvi_original)) %>% # calculating medians
+  pivot_wider(names_from = PhStatus, values_from = MedianNDVI) %>% # adding columns for comparison
+  mutate(Difference = Y - N) %>% # adding a column
+  rename(PopulationBuildingLevel = level) %>%  # renaming a column
+  print()
+```
+
+## Appendix2: Which Month is the Most Bright in Providence
+I would like to show monthly mean of the ALAN radiance collected over 10 years, and assign population and building level from the above to each cell. After that, I will create line plots of median of each levels with public housing status.
+As a result I figured out that:
+
+- Night light radiance is higher in summer in all classes
+- Grids with public housings tended to radiate more night lights throughout years
+- Nonetheless, grids without public housing radiates more night lights in some seasons at the same level, and vice versa.
+  - e.g., See Level2, and you will find that the median from those with public housing is higher in February, but those without is higher in April.
+```{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# Preparing Data=====
+# Reading data in a folder----
+setwd("./data/providence_ri")
+means <- list.files(pattern = "mean.TIF")
+
+# Converting into raster then brick----
+r_months <- lapply(means,
+                   raster::brick) %>%
+  brick()
+
+# Changing names of raster-----
+r_names <- lapply(means,
+                  function(x){
+                     gsub(".TIF",
+                          "",
+                          x)
+                   })
+ names(r_months) <- r_names
+
+# Reordering the raster brick----
+r_months <- subset(r_months,
+                   c(5, 4, 8, 1,
+                     9, 7, 6, 2,
+                     12, 11, 10, 3))
+
+# Converting crs----
+crs(r_months) <- crs(all_df)
+
+# Retrieving levels of population & building-----
+only_levels <- all_df[, 6: 7]
+
+# Converting monthly raster into polygon----
+p_months <- r_months %>%
+  rasterToPolygons(.) %>%
+  st_as_sf() %>%
+  sf::st_transform(crs = st_crs(all_df)) %>%
+  na.omit()
+
+ # Assigning levels by joining with levels sf-----
+p_months <- st_join(p_months,
+                    only_levels,
+                    join = st_equals,
+                    left = F)
+
+# Dividing the sf into ph and noph-----
+p_months_ph <- p_months %>%
+  filter(PhStatus == "Y")
+
+p_months_noph <- p_months %>%
+  filter(PhStatus == "N")
+
+# Aggregating median value by population building level-----
+p_months_summary_ph <-  p_months_ph[, 1: 12]%>%
+  st_drop_geometry() %>%
+  aggregate(by = list(as.factor(p_months_ph$ level)),
+            FUN = "median") %>%
+  mutate(PhStatus = "Yes")
+
+p_months_summary_noph <- p_months_noph[, 1: 12] %>%
+  st_drop_geometry() %>%
+  aggregate(by = list(as.factor(p_months_noph$ level)),
+            FUN = "median") %>%
+  mutate(PhStatus = "No")
+
+# Making the sf longer for monthly value analysis----
+p_months_summary <- bind_rows(p_months_summary_ph, p_months_summary_noph) %>%
+  pivot_longer(cols = c("jan_mean", "feb_mean", "mar_mean", "apr_mean", "may_mean", "jun_mean",
+                        "jul_mean", "aug_mean", "sep_mean", "oct_mean", "nov_mean", "dec_mean"),
+               names_to = "month",
+               values_to = "median")
+
+# Creating a dictionary df of months to numeric value of months-----
+months_eng <- c("jan_mean", "feb_mean", "mar_mean", "apr_mean", "may_mean", "jun_mean",
+                        "jul_mean", "aug_mean", "sep_mean", "oct_mean", "nov_mean", "dec_mean")
+months_num <- 1:12
+
+months_dict <- tibble(months_eng,
+                      months_num) %>%
+  rename(month = months_eng)
+
+# Joining with the summary sf-----
+p_months_summary <- left_join(p_months_summary,
+                              months_dict,
+                              multiple = "all") %>%
+  rename(level = Group.1)
+
+# Plotting the Result into Line Plot to Show the Changes=====
+# Creating a blue print----
+create_lineplot <- function(df, column, level){
+  df <- df[df[column] == level, ]
+    ggplot(df) +
+    geom_line(aes(x = months_num,
+                  y = median,
+                  color = PhStatus)) +
+    ggtitle(paste0("Level", 
+                   level))+
+    scale_x_continuous(breaks=seq(1,
+                                  12,
+                                  2))
+}
+
+# Applying the blueprint to each levels----
+g1 <- create_lineplot(p_months_summary, "level", 1)
+g2 <- create_lineplot(p_months_summary, "level", 2)
+g3 <- create_lineplot(p_months_summary, "level", 3)
+g4 <- create_lineplot(p_months_summary, "level", 4)
+g5 <- create_lineplot(p_months_summary, "level", 5)
+g6 <- create_lineplot(p_months_summary, "level", 6)
+g7 <- create_lineplot(p_months_summary, "level", 7)
+g8 <- create_lineplot(p_months_summary, "level", 8)
+g9 <- create_lineplot(p_months_summary, "level", 9)
+
+# Creating a cow plot----
+cowplot::plot_grid(g1, g2, g3, g4, g5, g6, g7, g8, g9,
+                   nrow = 3,
+                   align = "vh",
+                   axis = "l")
+```
