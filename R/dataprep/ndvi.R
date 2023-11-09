@@ -34,3 +34,11 @@ createNDVI <- function(
               overwrite = T)
   gc()
 }
+
+createNDVI(
+  "F:/GIS Projects/nightlight/toBePublished/miami/miami_red.tif",
+  "F:/GIS Projects/nightlight/toBePublished/miami/miami_nir.tif",
+  "F:/GIS Projects/nightlight/toBePublished/miami/miami_boundary.geojson",
+  "miami",
+  "F:/GIS Projects/nightlight/toBePublished/miami/"
+)

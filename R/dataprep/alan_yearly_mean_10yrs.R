@@ -3,7 +3,7 @@ library(geospaar)
 # CREATE FUNCTION####
 convertH5ToAverageAlan <- function(
     folder,
-    pathToTile,
+    pathToTile, # download from https://blackmarble.gsfc.nasa.gov/Tools.html
     tileID
 ){
   setwd(folder)
@@ -24,7 +24,7 @@ convertH5ToAverageAlan <- function(
 
       # Reading raster from the path----
       x <- raster::raster(x) # reading files as raster formet
-  })
+    })
 
   # Getting Meta Data to H5====
   for (i in 1:length(data)){
@@ -41,10 +41,10 @@ convertH5ToAverageAlan <- function(
   # Stacking Raster as Brick====
   b <- raster::brick(data)
 
-  # Calculating Mean for Generating a Single Tif====
+  # Calculating Mean====
   meanAlan <- calc(b, fun = mean)
 
-  # Exporting as Tif====
+  # Exporting as Tif
   meanAlan %>%
     writeRaster(
       paste0(
