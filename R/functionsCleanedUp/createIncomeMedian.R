@@ -1,13 +1,17 @@
-library(geospaar)
+library(sf)
+library(raster)
+library(sf)
+library(tidyr)
 
-createIncomeMedianRaster(
-  pathToPopulationCsv,
-  pathToCensusTractData,
-  pathToCityBoundary,
-  pathToAlanRaster,
-  epsg,
-  keyForJoin = "NAME", # Write a code for inner join if needed
-  populationColumn
+createIncomeMedianRaster<-
+  function(
+    pathToPopulationCsv,
+    pathToCensusTractData,
+    pathToCityBoundary,
+    pathToAlanRaster,
+    epsg,
+    keyForJoin = "NAME", # Write a code for inner join if needed
+    populationColumn
 ){
   # Reading CSV====
   medianIncomeDf <- read_csv(pathToPopulationCsv) %>%
@@ -72,7 +76,11 @@ createIncomeMedianRaster(
       epsg,
       "PopulationRaster.tif"),
     overwrite = TRUE)
+  }
 
+setwd("G:\GIS Projects\nightlight\nightlight2\miami")
+createIncomeMedianRaster(
+  "miami_population.csv",
+  "florida_tract\cb_2020_12_tract_500k.shp",
 
-
-}
+)
