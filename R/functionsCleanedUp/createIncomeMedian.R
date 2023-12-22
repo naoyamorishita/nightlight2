@@ -3,84 +3,92 @@ library(raster)
 library(sf)
 library(tidyr)
 
-createIncomeMedianRaster<-
-  function(
-    pathToPopulationCsv,
-    pathToCensusTractData,
-    pathToCityBoundary,
-    pathToAlanRaster,
-    epsg,
-    keyForJoin = "NAME", # Write a code for inner join if needed
-    populationColumn
-){
-  # Reading CSV====
-  medianIncomeDf <- read_csv(pathToPopulationCsv) %>%
-    tibble::as.tibble()
-
-  # Reading Tract====
-  tracts <- st_read(pathToCensusTractData) %>%
-    st_as_sf() %>%
-    st_transform(epsg) %>%
-    inner_join(medianIncomeDf,
-               keyForJoin) %>%
-    mutate(tractArea = st_area() %>%
+createPovertyRateRaster <- function(
+    pathToTractInfo,
+    pathToRaster,
+    outName){
+  
+  # Read Tract Information, Including Population & Poverty Population====
+  SF <- read_sf(pathToTractInfo) %>% 
+    st_as_sf() %>% 
+    mutate(tractArea = st_area(.) %>% 
              as.numeric())
+  # Read Raster====
+  r <- raster::raster(pathToRaster)
+  
+  # Convert Raster to Polygon====
+  p <- 
+    rasterToPolygons(r) %>% 
+    st_as_sf() %>% 
+    dplyr::mutate(gridID = 1:nrow(.)) %>% 
+    mutate(gridArea = st_area(.) %>% 
+             as.numeric()) %>% 
+    dplyr::select(gridID,
+                  gridArea)
+  
+  # Make Grid with Poverty Rate====
+  int <- st_intersection(SF, p) %>% 
+    mutate(intArea = st_area(.) %>% 
+             as.numeric) %>% 
+    # Calculate weight based on areas within the tract----
+    mutate(wgt = intArea/ tractArea) %>% 
+    # Interpolate population & poverty population based on the weight----
+    mutate(wgtPop = Population * wgt) %>% 
+    mutate(wgtPov = est200PrcntPov * wgt) %>% 
+    st_drop_geometry() %>% 
+    # Summarize by grid----
+    group_by(gridID) %>% 
+    summarize(gridPop = sum(wgtPop),
+              gridPov = sum(wgtPov)) %>% 
+    # Calculate estimated grid poverty rate----
+    mutate(gridPovRate = gridPov/ gridPop)
+  
+  # Combine with grid sf to get geometry----
+  g <- inner_join(p, int, by = "gridID")
+  
+  # Convert polygon into raster and write it----
+  gr <- raster::rasterize(g, r, field = "gridPovRate")
+  writeRaster(gr,
+              outName)
+  
+  
+}
+setwd("/Volumes/volume 1/GIS Projects/nightlight/nightlight2/miami")
 
-  # Reading City Boundary Data====
-  boundary <- st_read(pathToCensusTractData) %>%
-    st_as_sf() %>%
-    # Converting crs----
-    st_transform(crs = epsg) %>%
+data <- read_sf("miami_tract_info3.geojson")
 
-  r <- raster(pathToAlanRaster)
-  grid <- raster(r) %>%
-    slice(st_intersects(x = boundary,
-                       y = .)[[1]]) %>%
-    # Calculating area of grids----
-    mutate(gridArea = st_area(.) %>%
-           as.numeric()) %>%
+r <- raster::raster("alanYearlyMean_miami.tif")
 
-    # Assigning row id for joining later----
-    mutate(gridID = 1:nrow())
+data <- data %>% 
+  mutate(povRate = est200PrcntPov/ Population) %>% 
+  mutate(tractArea = st_area(.) %>% 
+           as.numeric(.))
 
-  # Estimating Income within A Cell====
-  gridIncome <- st_intersection(x = tracts,
-                                y = grid) %>%
-    mutate(intersectedArea = st_area() %>%
-             as.numeric) %>%
-    mutate(areaPercentageToTract = intersectedArea/ tractArea %>%
-                         as.numeric()) %>%
-    mutate(intAreaIncomePortion = incomeMedianColumn * areaPercentageToTract) %>%
+p <- 
+  rasterToPolygons(r) %>% 
+  st_as_sf() %>% 
+  dplyr::mutate(gridID = 1:nrow(.)) %>% 
+  mutate(gridArea = st_area(.) %>% 
+           as.numeric()) %>% 
+  dplyr::select(gridID,
+                gridArea)
 
-    # Grouping by grid to add up the population by the grid----
-  group_by(gridID) %>%
+int <- st_intersection(data, p) %>% 
+  mutate(intArea = st_area(.) %>% 
+           as.numeric) %>% 
+  mutate(wgt = intArea/ tractArea) %>% 
+  mutate(wgtPop = Population * wgt) %>% 
+  mutate(wgtPov = est200PrcntPov * wgt) %>% 
+  st_drop_geometry() %>% 
+  group_by(gridID) %>% 
+  summarize(gridPop = sum(wgtPop),
+            gridPov = sum(wgtPov)) %>% 
+  mutate(gridPovRate = gridPov/ gridPop)
 
-    # Dropping geometry for summarizing function----
-  st_drop_geometry() %>%
+g <- inner_join(p, int, by = "gridID")
 
-    # Calculating population within a grid----
-  summarise(.,
-            griddedIncome = sum(intAreaIncomePortion,
-                                na.rm = TRUE))
+g2 <- left_join(p, int, by = "gridID")
 
-  gridIncomeRaster <- grid %>%
-    inner_join(gridIncome,
-               by = "gridID") %>%
-    rasterize(r,
-              griddedIncome)
-
-  plot_noaxes(gridPopulationSf)
-
-  writeRaster(gridIncomeRaster,
-    paste0(
-      epsg,
-      "PopulationRaster.tif"),
-    overwrite = TRUE)
-  }
-
-setwd("G:\GIS Projects\nightlight\nightlight2\miami")
-createIncomeMedianRaster(
-  "miami_population.csv",
-  "florida_tract\cb_2020_12_tract_500k.shp",
-
-)
+gr <- raster::rasterize(g, r, field = "gridPovRate")
+writeRaster(gr,
+            "povertyRate.tif")
