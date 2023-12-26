@@ -3,13 +3,14 @@ library(raster)
 library(sf)
 library(tidyr)
 
-createPovertyRateRaster <- function(
-    pathToTractInfo,
+createPovertyRateAndPopulationRaster <- function(
+    pathToTractShapeFile,
     pathToRaster,
-    outName){
+    outNamePov,
+    outNamePop){
 
   # Read Tract Information, Including Population & Poverty Population====
-  SF <- read_sf(pathToTractInfo) %>%
+  SF <- read_sf(pathToTractShapeFile) %>%
     st_as_sf() %>%
     mutate(tractArea = st_area(.) %>%
              as.numeric())
@@ -49,7 +50,11 @@ createPovertyRateRaster <- function(
   # Convert polygon into raster and write it----
   gr <- raster::rasterize(g, r, field = "gridPovRate")
   writeRaster(gr,
-              outName)
+              outNamePov)
 
-
+  pr <- raster::rasterize(g,
+                          r,
+                          field = "gridPop")
+  writeRaster(pr,
+              outNamePop)
 }
