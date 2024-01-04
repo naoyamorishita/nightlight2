@@ -1,26 +1,25 @@
-library(geospaar)
+library(sf)
+library(raster)
+library(tidyr)
 
 # CREATE FUNCTION####
 convertH5ToAverageAlan <- function(
     folder,
     pathToTile,
-    TileId
+    TileId,
+    outPath
 ){
-  setwd(folder)
   # Listing File of H5 in the Folder====
-  h5s <- list.files(pattern = "*.h5")
+  h5s <- list.files(path = folder,
+                    pattern = "*.h5",
+                    full.names = T)
 
   # Reading Tile to Retrieve Information====
-  tile <<- st_read(pathToTile) %>%
-    st_as_sf() 
-  print(tile)
-  
-  print(TileId)
-  
-  print(TileId)
-  
-  tile <- tile%>% 
-    filter(
+  tile <- st_read(pathToTile) %>%
+    st_as_sf()
+
+  tile <- tile%>%
+    dplyr::filter(
       TileID == TileId
     )
   print(tile)
@@ -29,7 +28,6 @@ convertH5ToAverageAlan <- function(
   data <- lapply(
     h5s,
     function(x){
-
       # Reading raster from the path----
       x <- raster::raster(x) # reading files as raster formet
   })
@@ -52,22 +50,32 @@ convertH5ToAverageAlan <- function(
 
   # Calculating Mean for Generating a Single Tif====
   meanAlan <- calc(b, fun = mean)
-  
+
   print(meanAlan)
-  
+
   # Exporting as Tif====
   meanAlan %>%
     writeRaster(
       paste0(
+        folder,
+        "/",
         TileId,
         "_meanAlan.tif"
       ),
       overwrite = T
     )
+  gc()
 }
 
-convertH5ToAverageAlan(
-  "/Volumes/volume 1/GIS Projects/nightlight/nightlight2/miami/miami_nightlihgt_yearly",
-  "/Volumes/volume 1/GIS Projects/nightlight/nightlight2/BlackMarbleTiles/BlackMarbleTiles/BlackMarbleTiles.shp",
-  TileId = "h09v06"
-)
+# Apply the Function====
+# Set file locations----
+setwd("F:/GIS Projects/nightlight/nightlight2")
+tileLoc <- "./BlackMarbleTiles/BlackMarbleTiles/BlackMarbleTiles.shp"
+
+# Apply functions to each raster file----
+convertH5ToAverageAlan("./nyc/ntl", tileLoc, "h10v04")
+convertH5ToAverageAlan("./la/nightlight", tileLoc, "h06v05")
+convertH5ToAverageAlan("./chicago/nightlight", tileLoc, "h09v04")
+convertH5ToAverageAlan("./philladelphia/nighlight_h10v05", tileLoc, "h10v05")
+
+gc()
