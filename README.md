@@ -10,7 +10,7 @@ Users are recommended to refer to, modify, and run files in the following order.
 3. [`formatRaster.R`](R/preparation/formatRaster.R), which clips the NTL layer to a city boundary.
 - The R code also coarsens NDVI file to align the NDVI image to the NTL image.
 (TODO: Create an individual file for the coarsening.) 
-4. [`adInfoToTract.R`](R/preparation/addInfoTract.R), which create population and poverty layer.
+4. [`addInfoToTract.R`](R/preparation/addInfoToTract.R), which create population and poverty layer.
 - You need to download [census tract layer](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.2020.html#list-tab-1883739534) - I would recommend download a city boundary file of your interest to reduce a resulting file size.
 - I used P1 file of Decennial Census [(e.g., New York State)](https://data.census.gov/table/DECENNIALPL2020.P1?q=census&t=Populations%20and%20People&g=040XX00US36$1400000&y=2020).
 I would recommend to select **all tracts in a State**, **not to open the table in the webpage** and to download it, because I was able to handle the file easily in this way.
