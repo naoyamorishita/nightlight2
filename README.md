@@ -1,11 +1,4 @@
----
-editor_options: 
-  markdown: 
-    wrap: sentence
----
-
 # ReadMe
-
 ## Preparation Folder
 
 R files in this folder will prepare data that can be used night light analysis associated with and developed [this repository](https://github.com/agroimpacts/USFlite).
@@ -19,9 +12,9 @@ Users are recommended to refer to, modify, and run files in the following order.
 (TODO: Create an individual file for the coarsening.) 
 4.[`adInfoToTract.R`](R/preparation/addInfoTract.R), which create population and poverty layer.
 - You need to download [census tract layer](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.2020.html#list-tab-1883739534) - I would recommend download a city boundary file of your interest to reduce a resulting file size.
-- I used P1 file of Decennial Census[e.g., New York State](https://data.census.gov/table/DECENNIALPL2020.P1?q=census&t=Populations%20and%20People&g=040XX00US36$1400000&y=2020).
+- I used P1 file of Decennial Census [(e.g., New York State)](https://data.census.gov/table/DECENNIALPL2020.P1?q=census&t=Populations%20and%20People&g=040XX00US36$1400000&y=2020).
 I would recommend to select **all tracts in a State**, **not to open the table in the webpage** and to download it, because I was able to handle the file easily in this way.
-- I used S1701 file of ACS [e.g., New York State](https://data.census.gov/table/ACSST5Y2020.S1701?q=Poverty&g=040XX00US36$1400000&y=2020), and selected 200% poverty.
+- I used S1701 file of ACS [(e.g., New York State)](https://data.census.gov/table/ACSST5Y2020.S1701?q=Poverty&g=040XX00US36$1400000&y=2020), and selected 200% poverty.
 I would recommend to select **all tracts in a State**, **not to open the table in the webpage** and to download it, because I was able to handle the file easily in this way.
 - I wrote a code to format the files to join the files together.
 However, note that you may want to modify it, depending on which file you have downloaded.
