@@ -11,3 +11,10 @@ Users are recommended to refer to, modify, and run files in the following order.
   - The R code also coarsens NDVI file to align the NDVI image to the NTL image. (TODO: Create an individual file for the coarsening.)
   
 **Note that the building footprint files are often heavy and may crush R.** If users does not feel unconfortable with running Python, then they may want to use this code instead of R.
+
+## Discuss Analysis Ideas
+- Compare NTL at two time points using strata of with/ withoutUse PH.
+  - Use interval metrics presented by Prof. Gil Pontius for NTL.
+- Apply [time trajectory analysis by Thomas Bilintoh](https://github.com/bilintoh/timeseriesTrajectories)
+  - Analyze dynamics of hotspots/ cold spot of NTL in a time series.
+- Use time series analysis, such as linear regression and Theil- sen estimator over a decade.
