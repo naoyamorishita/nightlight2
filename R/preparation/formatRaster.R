@@ -78,31 +78,3 @@ formatAlan("./nyc/ntl/h10v04_meanAlan.tif",
            "epsg: 32619",
            paste0(outFolder,
                   "providenceNtl.tif"))
-
-r <- raster::raster(paste0(outFolder,
-                           "providenceNtl.tif"))
-
-formatRasterToAlan <- function(
-    pathToRaster,
-    pathToAlan,
-    outPath
-){
-  r <- raster::raster(pathToRaster)
-  alan <- raster::raster(pathToAlan)
-
-  r <-
-  r %>%
-    projectRaster(crs = crs(alan)) %>%
-    resample(y = alan)
-
-  print(r)
-  plot(r)
-
-  writeRaster(r,
-              outPath,
-              overwrite = T)
-}
-
-formatRasterToAlan("miami_ndvi.tif",
-                   "alanYearlyMean_miami.tif",
-                   "ndvi_coarsened.tif")
