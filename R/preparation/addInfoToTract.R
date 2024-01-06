@@ -88,11 +88,12 @@ createTractLayer <- function(
 
 
   # Join the DataFrames to Tract====
-  tract <- tr %>%
+  tract <<- tr %>%
     dplyr::inner_join(popDF,
                by = "GEOID") %>%
     dplyr::inner_join(povDF,
-                      by = "GEOID")
+                      by = "GEOID") %>%
+    dplyr::mutate(povRate = Poverty/ Population)
 
   # Check Result====
   print(tract[1:5,])

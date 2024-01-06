@@ -1,98 +1,98 @@
 library(sf)
 library(raster)
-library(sf)
 library(tidyr)
 
-createPovertyRateRaster <- function(
-    pathToTractInfo,
-    pathToRaster,
-    outName){
+createDemographicRasters <- function(
+    pathToNtlRaster,
+    # Use Layer from addInfoToTract.R====
+    pathToTractLayer,
+    outPathPop,
+    outPathPov){
 
-  # Read Tract Information, Including Population & Poverty Population====
-  SF <- read_sf(pathToTractInfo) %>%
+  # READ FILES####
+  ntl <- raster::raster(pathToNtlRaster)
+  tract <- st_read(pathToTractLayer) %>%
     st_as_sf() %>%
-    mutate(tractArea = st_area(.) %>%
-             as.numeric())
-  # Read Raster====
-  r <- raster::raster(pathToRaster)
+    # Calculate Area====
+    dplyr::mutate(tractArea = st_area(.) %>%
+                    as.numeric(.))
 
-  # Convert Raster to Polygon====
-  p <-
-    rasterToPolygons(r) %>%
+  # POLYGONIZE THE RASTER####
+  g <<- ntl %>% rasterToPolygons(.) %>%
     st_as_sf() %>%
+    # Assign Grid ID for Summary Later====
     dplyr::mutate(gridID = 1:nrow(.)) %>%
-    mutate(gridArea = st_area(.) %>%
-             as.numeric()) %>%
-    dplyr::select(gridID,
-                  gridArea)
+    # Make Sure CRS is the Same====
+    st_transform(crs = st_crs(tract)) %>%
+    # Calculate Area====
+    dplyr::mutate(gridArea = st_area(.) %>%
+                    as.numeric(.))
 
-  # Make Grid with Poverty Rate====
-  int <- st_intersection(SF, p) %>%
-    mutate(intArea = st_area(.) %>%
-             as.numeric) %>%
-    # Calculate weight based on areas within the tract----
-    mutate(wgt = intArea/ tractArea) %>%
-    # Interpolate population & poverty population based on the weight----
-    mutate(wgtPop = Population * wgt) %>%
-    mutate(wgtPov = est200PrcntPov * wgt) %>%
-    st_drop_geometry() %>%
-    # Summarize by grid----
-    group_by(gridID) %>%
-    summarize(gridPop = sum(wgtPop),
-              gridPov = sum(wgtPov)) %>%
-    # Calculate estimated grid poverty rate----
-    mutate(gridPovRate = gridPov/ gridPop)
+  # MAKE AN INTERSECTION LAYER####
+  int <- st_intersection(tract, g) %>%
+    # Calculate Area of Intersection====
+    dplyr::mutate(intArea = st_area(.) %>%
+                    as.numeric(.)) %>%
+    # Calculate Area Ratio of Intersection/ Tract so that Population is Interpolated====
+    dplyr::mutate(ratio = intArea/ tractArea) %>%
+    # Interpolate Population & Poverty Population of Intersected Area with the Ratio====
+    dplyr::mutate(estPop = Population * ratio) %>%
+    dplyr::mutate(estPov = Poverty * ratio) %>%
+    # Drop Geometry so that Inner Join can be Done====
+    st_drop_geometry(.)
 
-  # Combine with grid sf to get geometry----
-  g <- inner_join(p, int, by = "gridID")
+  # SUMMARIZE POPULATION & POVERTY PER GRID####
+  gUpdated <- int %>%
+    dplyr::group_by(gridID) %>%
+    dplyr::summarize(gPop = sum(estPop),
+                     gPov = sum(estPov)) %>%
+    # Estimate Poverty Rate====
+    dplyr::mutate(povRate = gPov/ gPop)
 
-  # Convert polygon into raster and write it----
-  gr <- raster::rasterize(g, r, field = "gridPovRate")
-  writeRaster(gr,
-              outName)
+  # ADD GEOMETRY BY LEFT JOIN####
+  g <<- g %>%
+    dplyr::left_join(gUpdated,
+                     by = "gridID")
 
+  print(gUpdated[1:5,])
 
+  # RASTERIZE GRID & EXPORT IT####
+  popr <<-
+    rasterize(x = g,
+              y = ntl,
+              field = "gPop")
+
+  print(popr)
+
+  povr <<-
+    rasterize(x =g,
+              y = ntl,
+              filed = "gPov")
+  print(povr)
+
+  # Export Population Raster====
+
+  popr %>%
+    writeRaster(x = .,
+                outPathPop,
+                overWrite = T)
+
+  # Export Poverty Rate Raster====
+  povr %>%
+    writeRaster(x = .,
+                outPathPov,
+                overWrite = T)
 }
-setwd("/Volumes/volume 1/GIS Projects/nightlight/nightlight2/miami")
 
-data <- read_sf("miami_tract_info3.geojson")
+# DEFINE FUNCTION TO RETURN FILE LOCATION OF DATA####
+returnPath <- function(fileName){
+  dataContainer = "C:/Users/nm200/Desktop/working/nightlight2/data/"
+  return(paste0(dataContainer,
+                fileName))
+}
 
-r <- raster::raster("alanYearlyMean_miami.tif")
+setwd("F:/GIS Projects/nightlight/nightlight2")
 
-data <- data %>%
-  dplyr::mutate(povRate = est200PrcntPov/ Population) %>%
-  dplyr::mutate(tractArea = st_area(.) %>%
-           as.numeric(.))
-
-p <-
-  rasterToPolygons(r) %>%
-  st_as_sf() %>%
-  dplyr::mutate(gridID = 1:nrow(.)) %>%
-  dplyr::mutate(gridArea = st_area(.) %>%
-           as.numeric()) %>%
-  dplyr::select(gridID,
-                gridArea)
-
-int <- st_intersection(data, p) %>%
-  dplyr::mutate(intArea = st_area(.) %>%
-           as.numeric) %>%
-  dplyr::mutate(wgt = intArea/ tractArea) %>%
-  dplyr::mutate(wgtPop = Population * wgt) %>%
-  dplyr::mutate(wgtPov = est200PrcntPov * wgt) %>%
-  st_drop_geometry() %>%
-  dplyr::group_by(gridID) %>%
-  dplyr::summarize(gridPop = sum(wgtPop),
-            gridPov = sum(wgtPov)) %>%
-  dplyr::mutate(gridPovRate = gridPov/ gridPop)
-
-g <- dplyr::inner_join(p, int, by = "gridID")
-
-g2 <- dplyr::left_join(p, int, by = "gridID")
-
-gr <- raster::rasterize(g, r, field = "gridPovRate")
-grPop <- raster::rasterize(g, r, field = "gridPop")
-# writeRaster(gr,
-#             "povertyRate.tif")
-writeRaster(grPop,
-            "popr.tif",
-            overwrite = T)
+# APPLY FUNCTION####
+# Create Layer for NYC====
+createDemographicRasters(returnPath("nycNtl.tif"), "./nyc/census/censusTractNyc.shp", returnPath("nycPop.tif"), returnPath("nycPov.tif"))
