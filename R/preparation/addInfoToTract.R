@@ -10,11 +10,12 @@ createTractLayer <- function(
     crsUsed,
     pathToPopulationCSV,
     pathToPovertyFile,
-    colsRetainedInPop,
-    colsRetainedInPov,
+    popColInCensus,
+    popColInACS,
+    povColInAcS,
     key,
-    prefixRemovedFromKeyInPop,
-    prefixRemovedFromKeyInPov,
+    prefixRemovedFromKeyInCensus,
+    prefixRemovedFromKeyInACS,
     outPath
   ){
 
@@ -49,37 +50,45 @@ createTractLayer <- function(
     as.data.frame()
 
   # Remove Unnecessary Columns and Rows====
-  popDF <- popDF[-1, c(key, colsRetainedInPop)]
-  povDF <- povDF[-1, c(key, colsRetainedInPov)]
+  popDF <- popDF[-1, c(key, popColInCensus)]
+  povDF <- povDF[-1, c(key, popColInACS, povColInAcS)]
 
   print(popDF[1:5, ])
   print(povDF[1:5, ])
 
   # Make Sure the Key Column Has the Same Name for Inner Join====
-  colnames(popDF) <- c("GEOID", "Population")
-  colnames(povDF) <- c("GEOID", "Poverty")
+  colnames(popDF) <- c("GEOID", "CensusPop")
+  colnames(povDF) <- c("GEOID", "ACSPop", "Poverty")
 
   # Remove "," in Numbers====
-  popDF$ Population <- as.integer(gsub(",",
-                                       "",
-                                       popDF$ Population))
+  if(typeof(popDF$ CensusPop) == "character"){
+    popDF$ CensusPop <- as.integer(gsub(",",
+                                               "",
+                                               popDF$ CensusPop))
+  }
 
-  povDF$ Poverty <- as.integer(gsub(",",
-                                    "",
-                                    povDF$ Poverty))
+  if(typeof(povDF$ ACSPop) == "character"){
+    povDF$ ACSPop <- as.integer(gsub(",",
+                                            "",
+                                            povDF$ ACSPop))
+  }
 
-
+  if(typeof(povDF$ Poverty) == "character"){
+    povDF$ Poverty <- as.integer(gsub(",",
+                                      "",
+                                      povDF$ Poverty))
+  }
 
   # Format Tract Names====
-  popDF$ GEOID <- gsub(prefixRemovedFromKeyInPop,
-                      "",
+  popDF$ GEOID <- gsub(prefixRemovedFromKeyInCensus,
+                       "",
                       popDF$ GEOID)
 
   print(popDF[1:5, ])
 
-  povDF$ GEOID <- gsub(prefixRemovedFromKeyInPop,
-                      "",
-                      povDF$ GEOID)
+  povDF$ GEOID <- gsub(prefixRemovedFromKeyInACS,
+                       "",
+                       povDF$ GEOID)
   print(povDF[1:5, ])
 
   popDF <<- popDF
@@ -93,7 +102,7 @@ createTractLayer <- function(
                by = "GEOID") %>%
     dplyr::inner_join(povDF,
                       by = "GEOID") %>%
-    dplyr::mutate(povRate = Poverty/ Population)
+    dplyr::mutate(povRate = Poverty/ACSPop)
 
   # Check Result====
   print(tract[1:5,])
@@ -104,8 +113,6 @@ createTractLayer <- function(
          st_geometry,
        col = "red",
        add = T)
-
-
 
 
   # Write the File====
@@ -124,6 +131,7 @@ createTractLayer(
   "./nyc/census/DECENNIALPL2020.P1_2023-12-27T184442/DECENNIALPL2020.P1-Data.csv",
   "./nyc/census/ACSST5Y2020.S1701_2023-12-27T184707/ACSST5Y2020.S1701-Data.csv",
   "P1_001N",
+  "S1701_C01_001E",
   "S1701_C01_042E",
   "GEO_ID",
   "1400000US",
@@ -137,6 +145,7 @@ la <- createTractLayer(
   "./la/DECENNIALPL2020.P1_2023-12-30T190657/DECENNIALPL2020.P1-Data.csv",
   "./la/ACSST5Y2020.S1701_2023-12-30T190610/ACSST5Y2020.S1701-Data.csv",
   "P1_001N",
+  "S1701_C01_001E",
   "S1701_C01_042E",
   "GEO_ID",
   "1400000US",
@@ -151,11 +160,12 @@ chicago <- createTractLayer(
   "./chicago/DECENNIALPL2020.P1_2024-01-01T114210/DECENNIALPL2020.P1-Data.csv",
   "./chicago/ACSST5Y2020.S1701_2024-01-01T114342/ACSST5Y2020.S1701-Data.csv",
   "P1_001N",
+  "S1701_C01_001E",
   "S1701_C01_042E",
   "GEO_ID",
   "1400000US",
   "1400000US",
-  "./chicago/censusTractChicago.shp"
+  "./chicago/census/censusTractChicago.shp"
 )
 
 philly <- createTractLayer(
@@ -165,6 +175,7 @@ philly <- createTractLayer(
   "./philladelphia/DECENNIALPL2020.P1_2024-01-01T115033/DECENNIALPL2020.P1-Data.csv",
   "./philladelphia/ACSST5Y2020.S1701_2024-01-01T114944/ACSST5Y2020.S1701-Data.csv",
   "P1_001N",
+  "S1701_C01_001E",
   "S1701_C01_042E",
   "GEO_ID",
   "1400000US",
@@ -179,6 +190,7 @@ phoenix <- createTractLayer(
   "./phoenix/DECENNIALPL2020.P1_2023-12-31T163121/DECENNIALPL2020.P1-Data.csv",
   "./phoenix/ACSST5Y2020.S1701_2023-12-31T163239/ACSST5Y2020.S1701-Data.csv",
   "P1_001N",
+  "S1701_C01_001E",
   "S1701_C01_042E",
   "GEO_ID",
   "1400000US",
@@ -193,6 +205,7 @@ providence <- createTractLayer(
   "./providence/DECENNIALPL2020.P1_2024-01-06T100802/DECENNIALPL2020.P1-Data.csv",
   "./providence/ACSST5Y2020.S1701_2023-12-31T164307/ACSST5Y2020.S1701-Data.csv",
   "P1_001N",
+  "S1701_C01_001E",
   "S1701_C01_042E",
   "GEO_ID",
   "1400000US",

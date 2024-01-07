@@ -11,14 +11,15 @@ createDemographicRasters <- function(
 
   # READ FILES####
   ntl <- raster::raster(pathToNtlRaster)
-  tract <- st_read(pathToTractLayer) %>%
+
+  tract <<- st_read(pathToTractLayer) %>%
     st_as_sf() %>%
     # Calculate Area====
     dplyr::mutate(tractArea = st_area(.) %>%
                     as.numeric(.))
 
   # POLYGONIZE THE RASTER####
-  g <<- ntl %>% rasterToPolygons(.) %>%
+  g <- ntl %>% rasterToPolygons(.) %>%
     st_as_sf() %>%
     # Assign Grid ID for Summary Later====
     dplyr::mutate(gridID = 1:nrow(.)) %>%
@@ -36,7 +37,8 @@ createDemographicRasters <- function(
     # Calculate Area Ratio of Intersection/ Tract so that Population is Interpolated====
     dplyr::mutate(ratio = intArea/ tractArea) %>%
     # Interpolate Population & Poverty Population of Intersected Area with the Ratio====
-    dplyr::mutate(estPop = Population * ratio) %>%
+    dplyr::mutate(estCensusPop = CensusPop * ratio) %>%
+    dplyr::mutate(estACSPop = ACSPop * ratio) %>%
     dplyr::mutate(estPov = Poverty * ratio) %>%
     # Drop Geometry so that Inner Join can be Done====
     st_drop_geometry(.)
@@ -44,44 +46,51 @@ createDemographicRasters <- function(
   # SUMMARIZE POPULATION & POVERTY PER GRID####
   gUpdated <- int %>%
     dplyr::group_by(gridID) %>%
-    dplyr::summarize(gPop = sum(estPop),
+    dplyr::summarize(gCPop = sum(estCensusPop),
+                     gAPop = sum(estACSPop),
                      gPov = sum(estPov)) %>%
     # Estimate Poverty Rate====
-    dplyr::mutate(povRate = gPov/ gPop)
+    dplyr::mutate(povRate = (gPov/ gAPop)*100) %>%
+    # Replace with 100 if exceeds 100%====
+    dplyr::mutate(povRate = ifelse(povRate > 100,
+                                   100,
+                                   povRate))
 
   # ADD GEOMETRY BY LEFT JOIN####
-  g <<- g %>%
+  g <- g %>%
     dplyr::left_join(gUpdated,
                      by = "gridID")
 
   print(gUpdated[1:5,])
 
   # RASTERIZE GRID & EXPORT IT####
-  popr <<-
+  popr <-
     rasterize(x = g,
               y = ntl,
-              field = "gPop")
+              field = "gCPop")
 
   print(popr)
+  raster::plot(popr)
 
-  povr <<-
+  povr <-
     rasterize(x =g,
               y = ntl,
-              filed = "gPov")
+              field = "povRate")
   print(povr)
+  raster::plot(povr)
 
   # Export Population Raster====
 
   popr %>%
     writeRaster(x = .,
                 outPathPop,
-                overWrite = T)
+                overwrite = TRUE)
 
   # Export Poverty Rate Raster====
   povr %>%
     writeRaster(x = .,
                 outPathPov,
-                overWrite = T)
+                overwrite = TRUE)
 }
 
 # DEFINE FUNCTION TO RETURN FILE LOCATION OF DATA####
@@ -95,4 +104,9 @@ setwd("F:/GIS Projects/nightlight/nightlight2")
 
 # APPLY FUNCTION####
 # Create Layer for NYC====
-createDemographicRasters(returnPath("nycNtl.tif"), "./nyc/census/censusTractNyc.shp", returnPath("nycPop.tif"), returnPath("nycPov.tif"))
+createDemographicRasters(returnPath("nycNtl.tif"), "./nyc/census/censusTractNyc.shp", returnPath("nycPop.tif"), returnPath("nycPovRate.tif"))
+createDemographicRasters(returnPath("laNtl.tif"), "./la/census/censusTractla.shp", returnPath("laPop.tif"), returnPath("laPovRate.tif"))
+createDemographicRasters(returnPath("chicagoNtl.tif"), "./chicago/census/censusTractChicago.shp", returnPath("chicagoPop.tif"), returnPath("chicagoPovRate.tif"))
+createDemographicRasters(returnPath("phillyNtl.tif"), "./philladelphia/census/censusTractphilly.shp", returnPath("phillyPop.tif"), returnPath("phillyPovRate.tif"))
+createDemographicRasters(returnPath("phoenixNtl.tif"), "./phoenix/census/censusTractphoenix.shp", returnPath("phoenixPop.tif"), returnPath("phoenixPovRate.tif"))
+createDemographicRasters(returnPath("providenceNtl.tif"), "./providence/census/censusTractprovidence.shp", returnPath("providencePop.tif"), returnPath("providencePovRate.tif"))
