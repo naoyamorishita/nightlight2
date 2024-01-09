@@ -57,7 +57,10 @@ createBuildDensityRaster <- function(
   gc()
 
   # Calculate Area of Intersection of Grid & Building====
-  int <<- st_intersection(bld, g) %>%
+  # Added st_make_valid to handle invalid geometry in philly building data----
+  int <- st_intersection(bld %>%
+                            st_make_valid(.),
+                          g) %>%
     dplyr::mutate(iarea = st_area(.) %>%
                     as.numeric(.)) %>%
     st_drop_geometry(.)
@@ -93,7 +96,6 @@ createBuildDensityRaster <- function(
               overwrite = T)
 
   # Clean Up File and Memory=====
-  rm(ls())
   gc()
 }
 
@@ -107,4 +109,8 @@ returnFullPath <- function(fileName){
 # APPLY FUNCTION####
 setwd("/Volumes/volume 1/GIS Projects/nightlight/nightlight2")
 createBuildDensityRaster(returnFullPath("providenceNtl.tif"), "./providence/Buildings/Buildings.shp", "./providence/Nhoods/Nhoods.shp",returnFullPath("providenceBld.tif"))
-
+createBuildDensityRaster(returnFullPath("laNtl.tif"), "./la/Building_Footprints.geojson", "./la/City_Boundary.geojson", returnFullPath("laBld.tif"))
+createBuildDensityRaster(returnFullPath("chicagoNtl.tif"), "./chicago/Building Footprints (current).geojson", "./chicago/Boundaries - City.geojson", returnFullPath("chicagoBld.tif"))
+createBuildDensityRaster(returnFullPath("phillyNtl.tif"), "./philladelphia/LI_BUILDING_FOOTPRINTS.geojson", "./philladelphia/City_Limits.geojson", returnFullPath("phillyBld.tif"))
+createBuildDensityRaster(returnFullPath("phoenixNtl.tif"), "./phoenix/Arizona.geojson", "./phoenix/City_Limit_Dark_Outline.geojson", returnFullPath("phoenixBld.tif"))
+createBuildDensityRaster(returnFullPath("nycNtl.tif"), "./nyc/Building Footprints.geojson", "./nyc/Borough Boundaries.geojson", returnFullPath("nycBld.tif"))
