@@ -18,7 +18,8 @@ I would recommend to select **all tracts in a State**, **not to open the table i
 - I wrote a code to format the files to join the files together.
 - However, note that you may want to modify it, depending on which file you have downloaded.
 6. [`createDemographicRasters.R`](R/preparation/createDemographicRasters.R), which converts the tract layer into raster layer using areal interpolation. The output is population raster from census population and poverty ratio from ACS 200% poverty divided by ACS population.
-7. [`calculateBuildingDensity.R`](R/preparation/calculateBuildingDensity.R), which calculates percentage of building areas within a grid. **Note that the building footprint files are often heavy and may crush R.** If users does not feel unconfortable with running Python, then they may want to use this code instead of R.
+7. [`calculateBuildingDensity.R`](R/preparation/calculateBuildingDensity.R), which calculates percentage of building areas within a grid. 
+8. [`estimatePublicHousingSize.R`](R/preparation/estimatePublicHousingSize.R), which calculates estimated ratio of public housing area within a grid. I used `st_join()` function with `st_nearest_feature`, because some public housing did not intersects with building layer.
 
 ## Discuss Analysis Ideas
 
