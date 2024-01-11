@@ -64,7 +64,7 @@ createPhPopRaster <- function(
 }
 
 # TEST FUNCTION####
-createPhPopRaster("/Volumes/volume/GIS Projects/nightlight/nightlight2/general/Public_Housing_Buildings.geojson",
-                  TOTAL_OCCUPIED,
-                  "./data/providencePop.tif",
-                  "./data/TESTprovidencePop.tif")
+# createPhPopRaster("/Volumes/volume/GIS Projects/nightlight/nightlight2/general/Public_Housing_Buildings.geojson",
+#                   TOTAL_OCCUPIED,
+#                   "./data/providencePop.tif",
+#                   "./data/TESTprovidencePop.tif")
