@@ -21,6 +21,9 @@ I would recommend to select **all tracts in a State**, **not to open the table i
 7. [`calculateBuildingDensity.R`](R/preparation/calculateBuildingDensity.R), which calculates percentage of building areas within a grid. 
 8. [`estimatePublicHousingSize.R`](R/preparation/estimatePublicHousingSize.R), which calculates estimated ratio of public housing area within a grid. I used `st_join()` function with `st_nearest_feature`, because some public housing did not intersects with building layer.
 
+### Note
+I gave up creating population in public housings, because NYC data did not have the column. However, if users are interested in to create the layer, they can refer to my R script of [`createPhPopulationLayer.R`](R/preparation/createPhPopulationLyaer.R)
+
 ## Discuss Analysis Ideas
 
 -   Compare NTL at two time points using strata of with/ withoutUse PH.
