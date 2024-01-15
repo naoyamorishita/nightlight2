@@ -101,16 +101,17 @@ createBuildDensityRaster <- function(
 
 # DEFINE A FUNCTION TO RETURN SAVE PATH####
 returnFullPath <- function(fileName){
-  return(paste0("/Users/naoyamorishita/Documents/working/nightlight2/data/",
+  return(paste0("C:/Users/NMorishita/Documents/GitHub/nightlight2/data/",
                 fileName)
          )
 }
 
 # APPLY FUNCTION####
-setwd("/Volumes/volume 1/GIS Projects/nightlight/nightlight2")
+setwd("G:/GIS Projects/nightlight/nightlight2")
 createBuildDensityRaster(returnFullPath("providenceNtl.tif"), "./providence/Buildings/Buildings.shp", "./providence/Nhoods/Nhoods.shp",returnFullPath("providenceBld.tif"))
 createBuildDensityRaster(returnFullPath("laNtl.tif"), "./la/Building_Footprints.geojson", "./la/City_Boundary.geojson", returnFullPath("laBld.tif"))
 createBuildDensityRaster(returnFullPath("chicagoNtl.tif"), "./chicago/Building Footprints (current).geojson", "./chicago/Boundaries - City.geojson", returnFullPath("chicagoBld.tif"))
 createBuildDensityRaster(returnFullPath("phillyNtl.tif"), "./philladelphia/LI_BUILDING_FOOTPRINTS.geojson", "./philladelphia/City_Limits.geojson", returnFullPath("phillyBld.tif"))
 createBuildDensityRaster(returnFullPath("phoenixNtl.tif"), "./phoenix/Arizona.geojson", "./phoenix/City_Limit_Dark_Outline.geojson", returnFullPath("phoenixBld.tif"))
 createBuildDensityRaster(returnFullPath("nycNtl.tif"), "./nyc/Building Footprints.geojson", "./nyc/Borough Boundaries.geojson", returnFullPath("nycBld.tif"))
+createBuildDensityRaster(returnFullPath("miamiNtl.tif"), "./miami/miami_bld.geojson", "./miami/miami_boundary_3086.geojson", returnFullPath("miamiBld.tif"))

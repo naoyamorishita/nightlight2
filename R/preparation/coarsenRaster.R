@@ -28,12 +28,12 @@ alignRaster <- function(
 }
 
 # SET UP FILE LOCATIONS####
-setwd("F:/GIS Projects/nightlight/nightlight2")
+setwd("G:/GIS Projects/nightlight/nightlight2")
 
 # Make a Function to Return File Location====
 fileLoc <- function(fileName){
   return(
-    paste0("C:/Users/nm200/Desktop/working/nightlight2/data/",
+    paste0("C:/Users/NMorishita/Documents/GitHub/nightlight2/data/",
            fileName))
 }
 
@@ -44,3 +44,4 @@ alignRaster("./chicago/chicago_ndvi.tif", fileLoc("chicagoNtl.tif"), fileLoc("ch
 alignRaster("./philladelphia/philly_ndvi.tif", fileLoc("phillyNtl.tif"), fileLoc("phillyNdvi.tif"))
 alignRaster("./phoenix/phoenix_ndvi.tif", fileLoc("phoenixNtl.tif"), fileLoc("phoenixNdvi.tif"))
 alignRaster("./providence/providence_ndvi.tif", fileLoc("providenceNtl.tif"), fileLoc("providenceNdvi.tif"))
+alignRaster("./miami/miami_ndvi.tif", fileLoc("miamiNtl.tif"), fileLoc("miamiNdvi.tif"))

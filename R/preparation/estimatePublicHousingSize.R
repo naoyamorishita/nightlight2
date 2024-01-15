@@ -1,4 +1,6 @@
-library(geospaar)
+library(sf)
+library(raster)
+library(tidyr)
 
 # DEFINE FUNCTION####
 createPhAreaRaster <- function(pathToCityBoundary,
@@ -95,12 +97,12 @@ pt <- read.csv("./chicago/Affordable_Rental_Housing_Developments_20240101.csv") 
 
 # DEFINE RETURN PATH FUNCTION####
 returnPath <- function(fileName){
-  return(paste0("/Users/naoyamorishita/Documents/working/nightlight2/data/",
+  return(paste0("C:/Users/NMorishita/Documents/GitHub/nightlight2/data/",
                 fileName))
 }
 
 # APPLY FUNCTION####
-setwd("/Volumes/volume 1/GIS Projects/nightlight/nightlight2")
+setwd("G:/GIS Projects/nightlight/nightlight2")
 createPhAreaRaster("./providence/Nhoods/Nhoods.shp",
                    "./general/Public_Housing_Buildings.geojson",
                    returnPath("providenceNtl.tif"),
@@ -130,6 +132,12 @@ createPhAreaRaster("./phoenix/City_Limit_Dark_Outline.geojson",
                    returnPath("phoenixNtl.tif"),
                    "./phoenix/Arizona.geojson",
                    returnPath("phoenixPhArea.tif"))
+
+createPhAreaRaster("./miami/miami_boundary_3086.geojson",
+                   "./miami/miami_boundary_3086.geojson",
+                   returnPath("miamiNtl.tif"),
+                   "./miami/miami_bld.geojson",
+                   returnPath("miamiPhArea.tif"))
 
 # CREATE PH RASTER IN NYC DISTRIBUTED AS POLYGON####
 # Read Raster and Polygonize the Raster====

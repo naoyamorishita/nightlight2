@@ -97,3 +97,10 @@ createNDVI(
   "providence",
   "./providence"
 )
+
+createNDVI("./miami/LC08_L2SP_015042_20230503_20230509_02_T1_SR_B4.TIF",
+           "./miami/LC08_L2SP_015042_20230503_20230509_02_T1_SR_B5.TIF",
+           "./miami/miami_boundary.geojson",
+           "miami",
+           "./miami"
+           )

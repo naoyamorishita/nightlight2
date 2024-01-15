@@ -3,7 +3,6 @@ library(raster)
 library(tidyr)
 
 # MOSAIC RASTER IN PHILLADELPHIA####
-raster::raster("")
 
 formatAlan <- function(
     pathToAlan,
@@ -26,8 +25,8 @@ formatAlan <- function(
               overwrite = T)
 }
 
-outFolder <- "C:/Users/nm200/Desktop/working/nightlight2/data/"
-setwd("F:/GIS Projects/nightlight/nightlight2")
+outFolder <- "C:/Users/NMorishita/Documents/GitHub/nightlight2/data/"
+setwd("G:/GIS Projects/nightlight/nightlight2")
 
 # Apply Function to Each City====
 formatAlan("./nyc/ntl/h10v04_meanAlan.tif",
@@ -78,3 +77,9 @@ formatAlan("./nyc/ntl/h10v04_meanAlan.tif",
            "epsg: 32619",
            paste0(outFolder,
                   "providenceNtl.tif"))
+
+formatAlan("./miami/ntl/h09v06_meanAlan.tif",
+           "./miami/miami_boundary_3086.geojson",
+           "epsg: 32617",
+           paste0(outFolder,
+                  "miamiNtl.tif"))

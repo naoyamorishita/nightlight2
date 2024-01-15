@@ -57,8 +57,7 @@ convertH5ToAverageAlan <- function(
   meanAlan %>%
     writeRaster(
       paste0(
-        folder,
-        "/",
+        "./data/",
         TileId,
         "_meanAlan.tif"
       ),
@@ -69,13 +68,17 @@ convertH5ToAverageAlan <- function(
 
 # Apply the Function====
 # Set file locations----
-setwd("F:/GIS Projects/nightlight/nightlight2")
-tileLoc <- "./BlackMarbleTiles/BlackMarbleTiles/BlackMarbleTiles.shp"
+setwd("G:/GIS Projects/nightlight/nightlight2")
+tileLoc <- "/BlackMarbleTiles/BlackMarbleTiles/BlackMarbleTiles.shp"
 
 # Apply functions to each raster file----
 convertH5ToAverageAlan("./nyc/ntl", tileLoc, "h10v04")
 convertH5ToAverageAlan("./la/nightlight", tileLoc, "h06v05")
 convertH5ToAverageAlan("./chicago/nightlight", tileLoc, "h09v04")
 convertH5ToAverageAlan("./philladelphia/nighlight_h10v05", tileLoc, "h10v05")
+convertH5ToAverageAlan("G:/GIS Projects/nightlight/nightlight2/miami/ntl",
+                       "G:/GIS Projects/nightlight/nightlight2/BlackMarbleTiles/BlackMarbleTiles/BlackMarbleTiles.shp",
+                       "h09v06")
+
 
 gc()
