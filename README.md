@@ -1,6 +1,8 @@
 # ReadMe
 ## Preparation Folder
 
+**See visualizations at [visualizeRasters.pdf](/vignetts/visualizeRasters.pdf)**
+
 R files in this folder will prepare data that can be used night light analysis associated with and developed [this repository](https://github.com/agroimpacts/USFlite).
 Users are recommended to refer to, modify, and run files in the following order.
 1. [`converth5ToTif.R`](R/preparation/converth5ToTif.R), which converts `.h5` format file to `.tif` format file and calculate average NTL radiance of images in a folder you specified.
