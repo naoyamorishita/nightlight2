@@ -212,3 +212,18 @@ providence <- createTractLayer(
   "1400000US",
   "./providence/census/censusTractProvidence.shp"
 )
+
+providence <- createTractLayer(
+  "./miami/miami_boundary.geojson",
+  "./miami/florida_tract/cb_2020_12_tract_500k.shp",
+  "epsg: 32617",
+  "./miami/DECENNIALPL2020.P1_2024-01-16T193103/DECENNIALPL2020.P1-Data.csv",
+  "./miami/ACSST5Y2020.S1701_2024-01-16T191401/ACSST5Y2020.S1701-Data.csv",
+  "P1_001N",
+  "S1701_C01_001E",
+  "S1701_C01_042E",
+  "GEO_ID",
+  "1400000US",
+  "1400000US",
+  "./miami/censusTractMiami.shp"
+)

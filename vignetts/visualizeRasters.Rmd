@@ -1,0 +1,57 @@
+---
+output:
+  pdf_document: default
+---
+# Import Libraries & Data
+```{r, fig.width=10, fig.height=6, fig.align = "left", warning = FALSE, message = FALSE}
+# READ LIBRARIES AND RASTER####
+# Read Libraries====
+library(raster)
+library(tidyr)
+library(readr)
+library(tinytex)
+
+# Read Raster as Brick====
+readBrick <- function(x){
+  # List files from the specified city name----
+  list.files(path = "../data",
+                  pattern = x,
+                  full.names = T) %>% 
+    # Read rasters as brick----
+    raster::stack(.) %>% 
+    raster::brick(.)
+}
+
+# Apply the Function====
+nyc <- readBrick("nyc*")
+la <- readBrick("la")
+philly <- readBrick("philly*")
+miami <- readBrick("miami*")
+phoenix <- readBrick("phoenix*")
+providence <- readBrick("providence*")
+
+# PLOT RASTER####
+l <- list(nyc, la, philly, miami, phoenix, providence)
+
+# Apply a Plot Function to the Raster List==== 
+l %>% 
+  lapply(.,
+         function(x){
+           # Specify names appearing as titles----
+           names(x) <- c("BuildingDensity", "NDVI", "NTL", "PublicHousingAreaRatio", "Population", "PovertyRate")
+           plot(x,
+                nr = 3)
+         })
+```
+
+## Save RDS File
+```{r}
+# SPECIFY CITY NAMES AND SAVE AS RDS####
+cities <- list("nyc.rds", "la.rds", "chicago.rds", "philly.rds", "miami.rds", "phoenix.rds", "providence.rds")
+
+for (i in 1:length(l)){
+  saveRDS(l[i],
+          paste0("../data/",
+                 cities[i]))
+}
+```

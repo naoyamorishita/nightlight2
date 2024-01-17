@@ -147,10 +147,10 @@ nyg <- nyr %>%
   raster::rasterToPolygons(.) %>%
   st_as_sf() %>%
   # Get grid id for inner join----
-  mutate(gridID = 1:nrow(.)) %>%
+  dplyr::mutate(gridID = 1:nrow(.)) %>%
   # Get grid area to calculate ratio of ph----
-  mutate(garea = st_area(.) %>%
-           as.numeric(.))
+  dplyr::mutate(garea = st_area(.) %>%
+                  as.numeric(.))
 
 # Get CRS====
 coords <- st_crs(nyg)
@@ -169,18 +169,18 @@ nyp <- st_read("./nyc/NYCHA_Developments/NYCHA_Developments.shp") %>%
 
 # Aggregate Ph Area of Ratio to Grid====
 nyp <- nyp %>%
-  group_by(gridID) %>%
-  summarise(sumArea = sum(phArea))
+  dplyr::group_by(gridID) %>%
+  dplyr::summarise(sumArea = sum(phArea))
 
 gPh <- nyg %>%
-  left_join(nyp,
-             by = "gridID") %>%
-  mutate(sumArea = ifelse(is.na(sumArea),
-                          0,
-                          sumArea)) %>%
-  mutate(ratio = sumArea/ garea)
+  dplyr::left_join(nyp,
+                   by = "gridID") %>%
+  dplyr::mutate(sumArea = ifelse(is.na(sumArea),
+                                 0,
+                                 sumArea)) %>%
+  dplyr::mutate(ratio = sumArea/ garea)
 
 gPh %>%
   rasterize(nyr,
             field = "ratio") %>%
-  writeRaster(returnPath("nycPhArea"))
+  writeRaster(returnPath("nycPhArea.tif"))

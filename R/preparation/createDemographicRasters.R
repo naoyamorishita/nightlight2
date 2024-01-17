@@ -110,3 +110,4 @@ createDemographicRasters(returnPath("chicagoNtl.tif"), "./chicago/census/censusT
 createDemographicRasters(returnPath("phillyNtl.tif"), "./philladelphia/census/censusTractphilly.shp", returnPath("phillyPop.tif"), returnPath("phillyPovRate.tif"))
 createDemographicRasters(returnPath("phoenixNtl.tif"), "./phoenix/census/censusTractphoenix.shp", returnPath("phoenixPop.tif"), returnPath("phoenixPovRate.tif"))
 createDemographicRasters(returnPath("providenceNtl.tif"), "./providence/census/censusTractprovidence.shp", returnPath("providencePop.tif"), returnPath("providencePovRate.tif"))
+createDemographicRasters(returnPath("miamiNtl.tif"), "./miami/censusTractMiami.shp", returnPath("miamiPop.tif"), returnPath("miamiPovRate.tif"))
