@@ -25,20 +25,22 @@ readBrick <- function(x){
 # Apply the Function====
 nyc <- readBrick("nyc*")
 la <- readBrick("la")
+chicago <- readBrick("chicago")
 philly <- readBrick("philly*")
 miami <- readBrick("miami*")
 phoenix <- readBrick("phoenix*")
 providence <- readBrick("providence*")
 
 # PLOT RASTER####
-l <- list(nyc, la, philly, miami, phoenix, providence)
+l <- list(nyc, la, chicago, philly, miami, phoenix, providence)
+name <- c("BuildingDensity", "NDVI", "NTL", "PublicHousingAreaRatio", "Population", "PovertyRate")
 
 # Apply a Plot Function to the Raster List==== 
 l %>% 
   lapply(.,
          function(x){
            # Specify names appearing as titles----
-           names(x) <- c("BuildingDensity", "NDVI", "NTL", "PublicHousingAreaRatio", "Population", "PovertyRate")
+           names(x) <- name
            plot(x,
                 nr = 3)
          })
@@ -50,6 +52,8 @@ l %>%
 cities <- list("nyc.rds", "la.rds", "chicago.rds", "philly.rds", "miami.rds", "phoenix.rds", "providence.rds")
 
 for (i in 1:length(l)){
+  names(l[[i]]) <- name
+  print(l[i])
   saveRDS(l[i],
           paste0("../data/",
                  cities[i]))
