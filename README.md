@@ -26,6 +26,13 @@ I would recommend to select **all tracts in a State**, **not to open the table i
 ### Note
 I gave up creating population in public housings, because NYC data did not have the column. However, if users are interested in to create the layer, they can refer to my R script of [`createPhPopulationLayer.R`](R/preparation/createPhPopulationLayer.R)
 
+## Analysis Folder
+Descriptive statistics were conducted in [stats.R](R/analysis/stats.R), using Providence RI as a case study. What have been done is 
+1. Descriptive statistics of variables, such as mean, median, skewness, and kurtosis.
+2. Visualization of linear relationship between NTL and other variables. This differentiate grids with or without public housings.
+3. Visualization of NTL from similar population with and without public housings.
+
+
 ## Discuss Analysis Ideas
 
 -   Compare NTL at two time points using strata of with/ withoutUse PH.
