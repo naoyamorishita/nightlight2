@@ -18,6 +18,7 @@ convertH5ToAverageAlan <- function(
   tile <- st_read(pathToTile) %>%
     st_as_sf()
 
+  # Find the Tile that Matches Study Extent====
   tile <- tile%>%
     dplyr::filter(
       TileID == TileId
@@ -29,7 +30,7 @@ convertH5ToAverageAlan <- function(
     h5s,
     function(x){
       # Reading raster from the path----
-      x <- raster::raster(x) # reading files as raster formet
+      x <- raster::raster(x)
   })
   print(data)
 
@@ -56,13 +57,17 @@ convertH5ToAverageAlan <- function(
   # Exporting as Tif====
   meanAlan %>%
     writeRaster(
+      # Pasting file path and file name----
       paste0(
         "./data/",
         TileId,
         "_meanAlan.tif"
       ),
+      # Allow overwriting raster file----
       overwrite = T
     )
+
+  # Do Garbage Collection for Memory Management=====
   gc()
 }
 

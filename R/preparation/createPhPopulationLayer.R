@@ -1,3 +1,4 @@
+# READ PACKAGES####
 library(sf)
 library(raster)
 library(tidyr)
@@ -15,6 +16,7 @@ createPhPopRaster <- function(
   # Read Raster & Polygonize it====
   r <- raster::raster(pathToPopulationRaster)
 
+  # Create a Grid====
   g <- r %>%
     rasterToPolygons(.) %>%
     st_as_sf(.) %>%
@@ -34,16 +36,16 @@ createPhPopRaster <- function(
     # Add grid id by st_intersection----
     st_intersection(g)
 
-  # Aggregate Ph Area by Grid====
+  # Aggregate Number of Ph Residents by Grid====
   gph <- ph %>%
     dplyr::group_by(gridID) %>%
     dplyr::summarize(sumResidents = sum(phResidents)) %>%
-    # Drop Geometry for Inner Join====
+    # Drop Geometry for Left Join====
     st_drop_geometry(.)
 
   # Rasterize the Grid====
   phr <- g %>%
-    # Add geometry by joining the df with the original grid----
+    # Add geometry by joining the df with the original grid: Keep grid that does not contain ph using left join----
     dplyr::left_join(gph,
                      by = "gridID") %>%
     # Calculate population in ph ratio to the grid population----

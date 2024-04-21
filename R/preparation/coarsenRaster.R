@@ -33,6 +33,7 @@ setwd("G:/GIS Projects/nightlight/nightlight2")
 # Make a Function to Return File Location====
 fileLoc <- function(fileName){
   return(
+    # Return file location by combining path and file name----
     paste0("C:/Users/NMorishita/Documents/GitHub/nightlight2/data/",
            fileName))
 }

@@ -33,7 +33,7 @@ createBuildDensityRaster <- function(
     st_as_sf() %>%
     # Make sure layers have the same crs----
     st_transform(coodRef) %>%
-    # Dissolving layers by calculating summing up dummy id with records sharing the id----
+    # Dissolving layers by calculating summing up dummy id with records sharing the id: remove subregions in a city if it has----
     dplyr::mutate(dummyID = 1) %>%
     dplyr::group_by(dummyID) %>%
     dplyr::summarize(dummyID = sum(dummyID))
@@ -61,8 +61,10 @@ createBuildDensityRaster <- function(
   int <- st_intersection(bld %>%
                             st_make_valid(.),
                           g) %>%
+    # Calculate intersection area of building and grid----
     dplyr::mutate(iarea = st_area(.) %>%
                     as.numeric(.)) %>%
+    # Remove geometry for non- spatial join----
     st_drop_geometry(.)
   rm(bld)
   gc()
@@ -73,6 +75,7 @@ createBuildDensityRaster <- function(
     dplyr::summarize(bldSum = sum(iarea))
 
   # Add Geometry by Joining Grid====
+  # Keep grids without buildings by left join----
   bld <- dplyr::left_join(g,
                           gdf,
                           by = "gridID") %>%
@@ -85,6 +88,7 @@ createBuildDensityRaster <- function(
 
   # Rasterize the Building Area Grid====
   bldr <- bld %>%
+    # Use the reference raster and use values of building area ratio----
     rasterize(r,
               field = "bldRatio")
   print(bldr)

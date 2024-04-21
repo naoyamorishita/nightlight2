@@ -12,7 +12,7 @@ createPhAreaRaster <- function(pathToCityBoundary,
   r <- raster::raster(pathToRaster)
 
   # Convert Raster to Grid====
-  g <<- r %>%
+  g <- r %>%
     rasterToPolygons(.) %>%
     st_as_sf() %>%
     mutate(gridID = 1:nrow(.))
@@ -24,21 +24,22 @@ createPhAreaRaster <- function(pathToCityBoundary,
     st_as_sf() %>%
     # Make sure layers have the same crs----
     st_transform(coordsRef) %>%
-    # Dissolving layers by calculating summing up dummy id with records sharing the id----
+    # Dissolving layers by calculating summing up dummy id with records sharing the id to remove subregions if a city has them----
     dplyr::mutate(dummyID = 1) %>%
     dplyr::group_by(dummyID) %>%
     dplyr::summarize(dummyID = sum(dummyID))
 
   # Read Public Housing Points Data====
-  ph <<- st_read(pathToPhPoint) %>%
+  ph <- st_read(pathToPhPoint) %>%
     st_as_sf() %>%
     st_transform(crs = coordsRef) %>%
     # Extract points in the cities----
     st_intersection(boundary) %>%
+    # Get grid id that intersects the ph----
     st_intersection(g)
 
-  # Extract Grids with Public Housing====
-  gPh <<- g %>%
+  # Extract grid that contains public housing----
+  gPh <- g %>%
     # Extract grids containing ph by looking up grid id of ph layer----
     dplyr::filter(gridID %in% unique(ph$ gridID))
 
@@ -47,24 +48,27 @@ createPhAreaRaster <- function(pathToCityBoundary,
     st_as_sf() %>%
     st_transform(crs = coordsRef)
 
-  # Drop Out of the Grid & Add Grid Number to Building with Ph by Inner Join====
-  bldg <<- bld %>%
+  # Drop "Out of the Grid" Ph & Add Grid Number to Building in a Grid with Ph by Inner Join====
+  bldg <- bld %>%
+    # Join building and grids that contains ph: Discard buildings that are not located in the grids with ph----
     st_join(.,
             gPh,
             st_intersects,
             left = FALSE) %>%
+    # Calculate building area----
     mutate(barea = st_area(.) %>%
              as.numeric(.)) %>%
+    # Discard unnecessary columns----
     select(barea)
   rm(bld)
   gc()
 
-  # Estimate Building Area by Nearest Neighbor Join====
-  phbld <<- st_join(gPh,
+  # Estimate Building Area of Ph by Nearest Neighbor Join====
+  phbld <- st_join(ph,
                    bldg,
                    join = st_nearest_feature) %>%
     # Reduce file size by dropping geometry----
-      st_drop_geometry() %>%
+    st_drop_geometry(.) %>%
     # Summing up ph area within the same grid----
     group_by(gridID) %>%
     summarize(sumPhArea = sum(barea))
@@ -73,8 +77,10 @@ createPhAreaRaster <- function(pathToCityBoundary,
   g <- left_join(g,
                  phbld,
                  by = "gridID") %>%
+    # Calculate grid area----
     mutate(garea = st_area(.) %>%
              as.numeric(.)) %>%
+    # Calculate ratio of sum of ph area to grid area----
     mutate(phAreaRatio = sumPhArea/ garea)
 
   # Insert 0 to NA====
@@ -90,8 +96,10 @@ createPhAreaRaster <- function(pathToCityBoundary,
 
 # CREATE GEOJSON FROM CHICAGO DATA PORTAL====
 pt <- read.csv("./chicago/Affordable_Rental_Housing_Developments_20240101.csv") %>%
+  # Create SF by specifying x and y column----
   st_as_sf(coords = c("Longitude", "Latitude"),
            crs = 4326) %>%
+  # Write Geojson----
   st_write("./chicago/chicagoPh.geojson")
 
 
@@ -143,6 +151,7 @@ createPhAreaRaster("./miami/miami_boundary_3086.geojson",
 # Read Raster and Polygonize the Raster====
 nyr <- raster::raster(returnPath("nycNtl.tif"))
 
+# Convert Raster to Grid====
 nyg <- nyr %>%
   raster::rasterToPolygons(.) %>%
   st_as_sf() %>%
@@ -172,14 +181,19 @@ nyp <- nyp %>%
   dplyr::group_by(gridID) %>%
   dplyr::summarise(sumArea = sum(phArea))
 
+# Join Grid with the Housing====
 gPh <- nyg %>%
+  # Keep all public housing by left join----
   dplyr::left_join(nyp,
                    by = "gridID") %>%
+  # Replace NA with 0 of sum of the ph area----
   dplyr::mutate(sumArea = ifelse(is.na(sumArea),
                                  0,
                                  sumArea)) %>%
+  # Calculate ratio of sum area of ph to grid area----
   dplyr::mutate(ratio = sumArea/ garea)
 
+# Rasterize the Polygon and Write a Raster====
 gPh %>%
   rasterize(nyr,
             field = "ratio") %>%

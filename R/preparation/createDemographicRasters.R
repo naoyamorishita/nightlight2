@@ -1,10 +1,11 @@
+# READ LIBRARIES####
 library(sf)
 library(raster)
 library(tidyr)
 
+# DEFINE FUNCTION####
 createDemographicRasters <- function(
     pathToNtlRaster,
-    # Use Layer from addInfoToTract.R====
     pathToTractLayer,
     outPathPop,
     outPathPov){
@@ -12,6 +13,7 @@ createDemographicRasters <- function(
   # READ FILES####
   ntl <- raster::raster(pathToNtlRaster)
 
+  # READ FILE FROM ADDINFOTOTRACT.R####
   tract <<- st_read(pathToTractLayer) %>%
     st_as_sf() %>%
     # Calculate Area====
@@ -58,6 +60,7 @@ createDemographicRasters <- function(
 
   # ADD GEOMETRY BY LEFT JOIN####
   g <- g %>%
+    # Keep Grid without Demographic Info (I am Expecting It does not Exist Though)=====
     dplyr::left_join(gUpdated,
                      by = "gridID")
 
@@ -65,6 +68,7 @@ createDemographicRasters <- function(
 
   # RASTERIZE GRID & EXPORT IT####
   popr <-
+    # Project Grid's Population Layer to NTL Raster====
     rasterize(x = g,
               y = ntl,
               field = "gCPop")
@@ -72,6 +76,7 @@ createDemographicRasters <- function(
   print(popr)
   raster::plot(popr)
 
+  # Project Grid's Poverty Rate Layer to NTL Raster====
   povr <-
     rasterize(x =g,
               y = ntl,
@@ -80,7 +85,6 @@ createDemographicRasters <- function(
   raster::plot(povr)
 
   # Export Population Raster====
-
   popr %>%
     writeRaster(x = .,
                 outPathPop,
@@ -103,7 +107,6 @@ returnPath <- function(fileName){
 setwd("F:/GIS Projects/nightlight/nightlight2")
 
 # APPLY FUNCTION####
-# Create Layer for NYC====
 createDemographicRasters(returnPath("nycNtl.tif"), "./nyc/census/censusTractNyc.shp", returnPath("nycPop.tif"), returnPath("nycPovRate.tif"))
 createDemographicRasters(returnPath("laNtl.tif"), "./la/census/censusTractla.shp", returnPath("laPop.tif"), returnPath("laPovRate.tif"))
 createDemographicRasters(returnPath("chicagoNtl.tif"), "./chicago/census/censusTractChicago.shp", returnPath("chicagoPop.tif"), returnPath("chicagoPovRate.tif"))

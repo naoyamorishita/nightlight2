@@ -24,28 +24,32 @@ createTractLayer <- function(
     st_as_sf() %>%
     st_transform(crs = crsUsed)
 
-  # Dissolve the Layer so that All Census Tracts within the Boundary Extracted====
+  # Remove Subregions in a City, If that Contains the Subregions by Dissolving====
   b <- bOriginal %>%
+    # Calculate area for dissolving----
     dplyr::mutate(a = st_area(.) %>%
                      as.numeric(.)) %>%
+    # Dissolve the layer----
     dplyr::summarize(total_area = sum(a))
 
   # Read Tract File with Specified CRS====
   trc <- st_read(pathToTract) %>%
     st_as_sf() %>%
     st_transform(crs = crsUsed)
-    # Extract tracts intersecting with the boundary----
+
+  # Extract Boundary that Intersects the City Boundary=====
   tr <<- dplyr::slice(trc,
                       st_intersects(x = b,
-                               y = trc)[[1]]) %>%
+                                    y = trc)[[1]]) %>%
+    # Remove unused columns----
     dplyr::select(GEOID)
 
   # Read Population File====
   popDF <- read.csv(pathToPopulationCSV) %>%
-    # Place tracts names in the row by transpose----
+    # Place tracts names in the row----
     as.data.frame()
 
-  # Read Poverty File==== %>%
+  # Read Poverty File====
   povDF <- read.csv(pathToPovertyFile) %>%
     as.data.frame()
 
@@ -60,17 +64,18 @@ createTractLayer <- function(
   colnames(popDF) <- c("GEOID", "CensusPop")
   colnames(povDF) <- c("GEOID", "ACSPop", "Poverty")
 
-  # Remove "," in Numbers====
+  # Remove "," in Numbers If Contained to Avoid NA Returned after Percentage Calculation====
   if(typeof(popDF$ CensusPop) == "character"){
+    # Replace "," with ""----
     popDF$ CensusPop <- as.integer(gsub(",",
-                                               "",
-                                               popDF$ CensusPop))
+                                        "",
+                                        popDF$ CensusPop))
   }
 
   if(typeof(povDF$ ACSPop) == "character"){
     povDF$ ACSPop <- as.integer(gsub(",",
-                                            "",
-                                            povDF$ ACSPop))
+                                     "",
+                                     povDF$ ACSPop))
   }
 
   if(typeof(povDF$ Poverty) == "character"){
@@ -80,6 +85,7 @@ createTractLayer <- function(
   }
 
   # Format Tract Names====
+  # Remove Prefix in the Key====
   popDF$ GEOID <- gsub(prefixRemovedFromKeyInCensus,
                        "",
                       popDF$ GEOID)
@@ -95,13 +101,13 @@ createTractLayer <- function(
   povDF <<- povDF
 
 
-
   # Join the DataFrames to Tract====
   tract <<- tr %>%
     dplyr::inner_join(popDF,
-               by = "GEOID") %>%
+                      by = "GEOID") %>%
     dplyr::inner_join(povDF,
                       by = "GEOID") %>%
+    # Calculate poverty rate from acs----
     dplyr::mutate(povRate = Poverty/ACSPop)
 
   # Check Result====

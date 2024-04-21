@@ -1,30 +1,40 @@
+# READ LIBRARIES####
 library(sf)
 library(raster)
 library(tidyr)
 
-# MOSAIC RASTER IN PHILLADELPHIA####
-
+# DEFINE FUNCTION####
 formatAlan <- function(
     pathToAlan,
     pathToboundary,
     epsg,
     outPath
 ){
+  # Read Boundary File and Transform CRS====
   b <- st_read(pathToboundary) %>%
     st_transform(crs = epsg)
   b4326 <- st_transform(b,
                         "epsg: 4326")
 
-  alan <- raster::raster(pathToAlan) %>%
-    crop(b4326) %>%
-    mask(b4326) %>%
-    projectRaster(crs = crs(b))
+  # alan <- raster::raster(pathToAlan) %>%
+  #   crop(b4326) %>%
+  #   mask(b4326) %>%
+  #   projectRaster(crs = crs(b))
 
+  # Read NTL Data, Reproject it, and Crop and Mask the Layer by the Bounadry====
+  # If this does not work, try the codes above----
+  alan <- raster::raster(pathToAlan) %>%
+    projectRaster(crs = crs(b)) %>%
+    crop(b) %>%
+    mask(b)
+
+  # Export the Masked Layer====
   writeRaster(alan,
               outPath,
               overwrite = T)
 }
 
+# Set Up Folders====
 outFolder <- "C:/Users/NMorishita/Documents/GitHub/nightlight2/data/"
 setwd("G:/GIS Projects/nightlight/nightlight2")
 
@@ -58,8 +68,7 @@ raster::raster("./nyc/ntl/h10v04_meanAlan.tif") %>%
   raster::merge(raster::raster("./philladelphia/nighlight_h10v05/h10v05_meanAlan.tif")) %>%
   raster::writeRaster(.,
                       filename = "./philladelphia/ntlMosaic.tif")
-
-# Apply the function----
+# Apply Functions====
 formatAlan("./philladelphia/ntlMosaic.tif",
            "./philladelphia/City_Limits.geojson",
            "epsg: 32618", #

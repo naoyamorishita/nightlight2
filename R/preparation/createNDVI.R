@@ -1,3 +1,4 @@
+# READ LIBRARIES####
 library(sf)
 library(raster)
 library(tidyr)
@@ -14,8 +15,10 @@ createNDVI <- function(
   # Read Files====
   red  <- raster::raster(pathToRed)
   nir <- raster::raster(pathToNIR)
+
+  # Read Boundary====
   boundary <- st_read(pathToboundary) %>%
-    # Align CRS====
+    # Align CRS: We are using landsat so I am expecting UTM Zone is "right"====
     st_transform(crs = crs(red))
 
   # Reduce File Size by Masking Raster by Boundary====
@@ -23,6 +26,7 @@ createNDVI <- function(
 
   b <- raster::mask(x = b,
                     mask = boundary)
+
   b <- raster::crop(x = b,
                     y = boundary)
 
